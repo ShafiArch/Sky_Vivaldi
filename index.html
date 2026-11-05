@@ -241,12 +241,22 @@ svg.spark{display:block}
 .hero{display:flex;flex-direction:column;gap:12px}
 .hero-head{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between;align-items:flex-end}
 .hero-ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.ridgewrap{position:relative;min-width:0;background:linear-gradient(180deg,var(--panel),var(--bg));border:1px solid var(--line);border-radius:14px;padding:clamp(12px,1.6vw,28px)}
-.ridgewrap canvas{display:block;width:100%}
-.rlegend{position:absolute;top:clamp(14px,1.8vw,30px);left:clamp(14px,1.8vw,30px);display:flex;flex-direction:column;gap:6px;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);pointer-events:none}
-.rlegend span{display:flex;align-items:center;gap:8px}
-.rlegend i{width:14px;height:14px;border-radius:2px;background:var(--c)}
-@media (max-width:600px){.rlegend{position:static;flex-direction:row;flex-wrap:wrap;margin-top:8px}}
+.ridgewrap{display:grid;grid-template-columns:minmax(0,min(100%,880px,80vh)) minmax(240px,1fr);gap:clamp(16px,3vw,56px);align-items:center;background:linear-gradient(180deg,var(--panel),var(--bg));border:1px solid var(--line);border-radius:14px;padding:clamp(12px,1.8vw,32px)}
+@media (max-width:900px){.ridgewrap{grid-template-columns:1fr}}
+.ridgeplot{min-width:0}
+.ridgeplot canvas{display:block;width:100%}
+.rside{display:flex;flex-direction:column;min-width:0;max-width:560px}
+.rside .rhead{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-bottom:8px;border-bottom:1px solid var(--line-strong)}
+.rrow{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding-block:12px;border-bottom:1px solid var(--line)}
+.rrow i{width:14px;height:14px;border-radius:3px;background:var(--c)}
+.rrow .nm{letter-spacing:.06em;text-transform:uppercase;font-size:.78rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rrow .mv{font-size:1.6rem;font-weight:250;font-variant-numeric:tabular-nums;line-height:1}
+.rrow .mv small{font-size:.8rem;color:var(--muted);margin-left:3px}
+.rrow .rng{grid-column:2/4;font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.rside .rnote{font-size:.8rem;color:var(--muted);margin-top:12px}
+.pickers{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.swatch{display:inline-flex;gap:3px;margin-top:6px}
+.swatch i{width:18px;height:8px;border-radius:2px;background:var(--c)}
 .drop{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 85%,transparent);border:3px dashed var(--accent);display:flex;align-items:center;justify-content:center;text-align:center;font-family:var(--display);font-size:1.8rem;color:var(--accent);z-index:50;padding:20px}
 footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -261,6 +271,11 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
       <p style="font-family:var(--display);font-size:1.3rem;color:var(--accent)">Four climates, side by side.</p>
       <p class="lede">Open up to four .epw files side by side. Each section lines the files up in columns: header lines, the 35 hourly fields, charts, single records and the full file tree. Files are read in your browser and never uploaded.</p>
     </div>
+    <div class="pickers">
+    <label class="themepick" for="palSel">Palette
+      <select class="sel" id="palSel"></select>
+      <span class="swatch" id="palSwatch" aria-hidden="true"></span>
+    </label>
     <label class="themepick" for="skinSel">Theme
       <select class="sel" id="skinSel">
         <option value="auto">Match system</option>
@@ -269,7 +284,9 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
         <option value="clay">Clay</option>
         <option value="trace">Trace</option>
       </select>
+      <span class="swatch" aria-hidden="true" style="visibility:hidden"><i></i></span>
     </label>
+    </div>
   </header>
 
   <div class="panebar" id="panebar"></div>
@@ -284,7 +301,7 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
         </div>
       </div>
     </div>
-    <div class="ridgewrap"><canvas id="ridges" role="img" aria-label="Layered 3D chart of the selected field across the year"></canvas><div class="rlegend" id="rlegend"></div></div>
+    <div class="ridgewrap"><div class="ridgeplot"><canvas id="ridges" role="img" aria-label="Layered 3D chart of the selected field across the year"></canvas></div><div class="rside" id="rlegend"></div></div>
   </section>
 
   <section id="s-summary">
@@ -441,7 +458,7 @@ const RAMP_TEMP=["#2a3c8e","#3b7dbf","#8ec4dc","#efe6aa","#f2a14a","#cc472f","#7
 const WIND_COLS_STD=["#a9dbe6","#5fb4cc","#2b86a8","#1c567c","#132f55"],WIND_COLS_INK=["#c9c6bc","#9d9a90","#6e6b63","#45433e","#1c1c1a"];
 const RAMP_INK=["#ecebe5","#c4c1b7","#8f8c83","#5a5853","#2a2a28","#111110"];
 const isInk=()=>document.documentElement.getAttribute("data-skin")==="trace";
-const windCols=()=>isInk()?WIND_COLS_INK:WIND_COLS_STD;
+const windCols=()=>{const P=PALETTES[palKey];if(P.ramp){const f=rampFn(P.ramp);return [.92,.72,.52,.3,.08].map(t=>`rgb(${f(t).join(",")})`)}return isInk()?WIND_COLS_INK:WIND_COLS_STD};
 const PCOL=["var(--p0)","var(--p1)","var(--p2)","var(--p3)"];
 const pcol=i=>css("--p"+i)||"#2f7fb8";
 const LETTERS=["A","B","C","D"];
@@ -588,7 +605,29 @@ const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim
 function fmt(v,dp){if(v==null||isNaN(v))return "n/a";return Number(v).toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp})}
 function hex2rgb(h){h=h.replace("#","");return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]}
 function rampFn(stops){const c=stops.map(hex2rgb);return t=>{t=Math.max(0,Math.min(1,t));const x=t*(c.length-1),i=Math.min(c.length-2,Math.floor(x)),f=x-i;return c[i].map((v,k)=>Math.round(v+(c[i+1][k]-v)*f))}}
-function rampFor(k){return isInk()?RAMP_INK:k===6||k===7?RAMP_TEMP:RAMP_SEQ}
+const PALETTES={
+ theme:{name:"Theme colors"},
+ dusk:{name:"Dusk",series:["#14325A","#F08FA0","#8E74A8","#F2A46C"],ramp:["#0F2340","#14325A","#8E74A8","#F08FA0","#EE9A84","#F2A46C"]},
+ ember:{name:"Ember",series:["#214F5F","#E2773A","#6B504C","#FFCB68"],ramp:["#0C0F1E","#143041","#214F5F","#6B504C","#E2773A","#FFCB68"]},
+ berry:{name:"Berry",series:["#E6223A","#374365","#644765","#690722"],ramp:["#03213D","#062A48","#374365","#644765","#621D43","#690722","#E6223A"]},
+ sand:{name:"Sand",series:["#2D4354","#9E6752","#73766A","#FED7A5"],ramp:["#20212B","#2D4354","#534145","#73766A","#9E6752","#FED7A5"]},
+ sunset:{name:"Sunset",series:["#1C1E3A","#B85C4A","#6D324F","#E89F6E"],ramp:["#1C1E3A","#40263A","#6D324F","#B85C4A","#E89F6E","#F7E6C4"]}
+};
+let palKey="theme";
+const lum=h=>{const c=hex2rgb(h).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*c[0]+.7152*c[1]+.0722*c[2]};
+function fitColor(hex,bg){
+  const dark=lum(bg)<.2;let c=hex;
+  for(let i=0;i<6;i++){const L=lum(c);if(dark&&L<.12)c=toHex(mixC(c,"#ffffff",.22));else if(!dark&&L>.62)c=toHex(mixC(c,"#000000",.15));else break}
+  return c;
+}
+function applyPalette(k){
+  palKey=PALETTES[k]?k:"theme";const P=PALETTES[palKey],st=document.documentElement.style;
+  for(let i=0;i<4;i++)st.removeProperty("--p"+i);
+  if(P.series){const bg=toHex(css("--bg"));P.series.forEach((c,i)=>st.setProperty("--p"+i,fitColor(c,bg)))}
+  $("#palSel").value=palKey;
+  $("#palSwatch").innerHTML=[0,1,2,3].map(i=>`<i style="--c:var(--p${i})"></i>`).join("");
+}
+function rampFor(k){const P=PALETTES[palKey];if(P.ramp)return P.ramp;return isInk()?RAMP_INK:k===6||k===7?RAMP_TEMP:RAMP_SEQ}
 function niceTicks(min,max,n){if(!isFinite(min)||!isFinite(max)){min=0;max=1}if(max===min)max=min+1;const st0=(max-min)/n,mag=Math.pow(10,Math.floor(Math.log10(st0))),e=st0/mag;const st=(e>=7.5?10:e>=3.5?5:e>=1.5?2:1)*mag;const lo=Math.floor(min/st)*st,hi=Math.ceil(max/st)*st,t=[];for(let v=lo;v<=hi+st*1e-6;v+=st)t.push(+v.toFixed(10));return{lo,hi,t}}
 function setup(cv,h){const w=Math.max(160,cv.parentElement.clientWidth);const dpr=window.devicePixelRatio||1;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);cv.style.height=h+"px";const ctx=cv.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);return{ctx,w,h}}
 const fs=(m=.74)=>Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize)*m);
@@ -939,9 +978,9 @@ function heroLayers(){
 }
 function drawRidges(animate){
   cancelAnimationFrame(ridgeRAF);
-  const cv=$("#ridges"),par=cv.parentElement,cs=getComputedStyle(par);
-  const w=Math.max(260,par.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight));
-  const h=Math.round(Math.max(260,Math.min(560,w*.31)));
+  const cv=$("#ridges"),par=cv.parentElement;
+  const w=Math.max(260,par.clientWidth);
+  const h=Math.round(Math.max(260,w*.82));
   const dpr=window.devicePixelRatio||1;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);cv.style.height=h+"px";
   const ctx=cv.getContext("2d");
   const k=sel,f=FIELDS[k],layers=heroLayers(),L=loaded(),single=L.length===1;
@@ -949,7 +988,9 @@ function drawRidges(animate){
   $("#heroStat").querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===heroStat));
   $("#heroTitle").textContent=f.n;
   $("#heroLede").textContent=!L.length?"Open a file to see its year in layers.":single?`Daily max, mean and min across the year for ${locOf(L[0].E).city||L[0].name}, smoothed over a week.`:`Daily ${heroStat} across the year for each file, smoothed over a week. Higher values sit further back so every layer stays visible.`;
-  $("#rlegend").innerHTML=layers.map(l=>`<span><i style="--c:${l.color}"></i>${esc(l.label)}</span>`).join("");
+  const lstat=l=>{let s=0,n=0,mn=Infinity,mx=-Infinity;l.series.forEach(v=>{if(isFinite(v)){s+=v;n++;if(v<mn)mn=v;if(v>mx)mx=v}});return n?{m:s/n,mn,mx}:null};
+  const dp=Math.max(0,f.dp);
+  $("#rlegend").innerHTML=layers.length?`<div class="rhead">Back to front · ${single?"":`daily ${heroStat}, `}weekly smoothed</div>`+layers.map(l=>{const st=lstat(l);return `<div class="rrow"><i style="--c:${l.color}"></i><span class="nm" title="${esc(l.label)}">${esc(l.label)}</span><span class="mv">${st?fmt(st.m,dp):"n/a"}<small>${esc(f.u)}</small></span><span class="rng">${st?`annual mean · range ${fmt(st.mn,dp)} to ${fmt(st.mx,dp)}`:"no valid values"}</span></div>`}).join("")+`<p class="rnote">Each layer runs January to December along the front edge. Change the field or statistic above to compare another quantity.</p>`:"";
   const vals=[];layers.forEach(l=>l.series.forEach(v=>{if(isFinite(v))vals.push(v)}));
   const paint=prog=>{
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
@@ -957,10 +998,9 @@ function drawRidges(animate){
     let lo0=Math.min(...vals),hi0=Math.max(...vals);if(f.g==="solar"||f.g==="illum")lo0=Math.min(0,lo0);
     const {lo,hi,t}=niceTicks(lo0,hi0,4);
     const n=layers.length,F=fs();
-    const lg=$("#rlegend"),lgAbs=getComputedStyle(lg).position==="absolute";
-    const B=F*3.4,T=lgAbs?Math.max(F*1.5,lg.offsetHeight*.7):F*1.5,Rm=F*5.2,Lm=w<600?4:F;
-    const stepX=n>1?Math.min(w*.065,w*.2/(n-1)):0,stepY=n>1?Math.min(h*.1,h*.3/(n-1)):0;
-    const X0=Lm+(n-1)*stepX,Y0=h-B,X1=w-Rm,slope=h*.17,Y1=Y0-slope;
+    const B=F*3.4,T=F*2.2,Rm=F*5.2,Lm=w<600?4:F;
+    const stepX=n>1?Math.min(w*.085,w*.27/(n-1)):0,stepY=n>1?Math.min(h*.085,h*.26/(n-1)):0;
+    const X0=Lm+(n-1)*stepX,Y0=h-B,X1=w-Rm,slope=h*.2,Y1=Y0-slope;
     const Hs=Math.max(h*.28,Y1-(n-1)*stepY-T);
     const yv=v=>(Math.max(lo,v)-lo)/(hi-lo)*Hs*prog;
     const P=(j,tt,v)=>{const o=n-1-j;return [X0+(X1-X0)*tt-o*stepX,Y0+(Y1-Y0)*tt-o*stepY-yv(v)]};
@@ -984,7 +1024,7 @@ function drawRidges(animate){
     /* front baseline and month labels along the slope */
     ctx.strokeStyle=muted;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X0,Y0);ctx.lineTo(X1,Y1);ctx.stroke();
     ctx.fillStyle=muted;ctx.font=`350 ${F}px ${css("--body")}`;ctx.textAlign="center";
-    MONTHS.forEach((m,i)=>{if(w<520&&i%2)return;const tt=(MS[i]+MS[i+1])/2/365,x=X0+(X1-X0)*tt,y=Y0+(Y1-Y0)*tt;ctx.save();ctx.translate(x,y+F*1.5);ctx.rotate(ang);ctx.fillText(m.toUpperCase(),0,0);ctx.restore()});
+    MONTHS.forEach((m,i)=>{if(w<460&&i%2)return;const tt=(MS[i]+MS[i+1])/2/365,x=X0+(X1-X0)*tt,y=Y0+(Y1-Y0)*tt;ctx.save();ctx.translate(x,y+F*1.5);ctx.rotate(ang);ctx.fillText(m.toUpperCase(),0,0);ctx.restore()});
     /* value axis at the right end */
     const ax=X1+F*.9;ctx.strokeStyle=muted;ctx.beginPath();ctx.moveTo(ax,Y1);ctx.lineTo(ax,Y1-Hs);ctx.stroke();
     ctx.textAlign="left";
@@ -1171,7 +1211,9 @@ function renderAll(){
 function redraw(){drawCharts();drawWinds();drawRidges(false)}
 
 /* ---------- themes ---------- */
-function applySkin(v){if(v&&v!=="auto")document.documentElement.setAttribute("data-skin",v);else document.documentElement.removeAttribute("data-skin");$("#skinSel").value=v||"auto";setTimeout(redraw,30)}
+function applySkin(v){if(v&&v!=="auto")document.documentElement.setAttribute("data-skin",v);else document.documentElement.removeAttribute("data-skin");$("#skinSel").value=v||"auto";applyPalette(palKey);setTimeout(redraw,30)}
+$("#palSel").innerHTML=Object.entries(PALETTES).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("");
+$("#palSel").onchange=e=>{applyPalette(e.target.value);try{localStorage.setItem("skyvivaldi-palette",e.target.value)}catch(err){};renderFields();redraw()};
 $("#skinSel").onchange=e=>{applySkin(e.target.value);try{localStorage.setItem("skyvivaldi-skin",e.target.value)}catch(err){}};
 
 /* ---------- page drop ---------- */
@@ -1181,11 +1223,12 @@ window.addEventListener("dragleave",()=>{dragN--;if(dragN<=0){dragN=0;$("#drop")
 window.addEventListener("dragover",e=>e.preventDefault());
 window.addEventListener("drop",e=>{e.preventDefault();dragN=0;$("#drop").hidden=true;const files=[...e.dataTransfer.files];if(files.length)loadFiles(files,null)});
 let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(redraw,150)});
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>setTimeout(redraw,30));
-new MutationObserver(()=>setTimeout(redraw,30)).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{applyPalette(palKey);setTimeout(redraw,30)});
+new MutationObserver(()=>{applyPalette(palKey);setTimeout(redraw,30)}).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
 
 /* ---------- start ---------- */
 buildSelectors();
+palKey=PALETTES[recall("skyvivaldi-palette")]?recall("skyvivaldi-palette"):"theme";
 applySkin(recall("skyvivaldi-skin")||"auto");
 {const a=newPane(),b=newPane();PANES=[a,b];
  a.E=parseEPW(makeSample("marine"),"marine_sample.epw");a.name="marine_sample.epw";a.sample=true;a.sampleKey="marine";

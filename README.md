@@ -19,6 +19,7 @@ A browser tool for learning the EnergyPlus Weather (EPW) file format and compari
 - Shows the whole file as a collapsible tree, like a JSON viewer, with paths and explanations for every node.
 - Checks each file for common problems (missing header lines, short records, missing values, odd day lengths).
 - Four themes: White, Night, Clay and Trace (an e-ink and newsprint palette).
+- Six color palettes (Theme colors, Dusk, Ember, Berry, Sand, Sunset), applied the same way to every chart, file label and heatmap.
 - Fills the whole screen and adapts to phones, tablets, laptops and large monitors in portrait or landscape.
 
 ## Privacy and load
