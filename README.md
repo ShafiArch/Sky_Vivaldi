@@ -8,6 +8,7 @@ A browser tool for learning the EnergyPlus Weather (EPW) file format and compari
 
 ## What it does
 
+- Shows the year as a 3D layered chart ("climate ridges") at the top, one layer per file, or daily max, mean and min for a single file.
 - Opens up to four `.epw` files side by side. Use the **+** button to add a pane, or drop several files on the page.
 - Shows how the file is built: the eight header lines, then one record per hour with 35 comma separated fields.
 - Decodes the header (location, design conditions, typical and extreme weeks, ground temperatures, calendar).
@@ -17,7 +18,8 @@ A browser tool for learning the EnergyPlus Weather (EPW) file format and compari
 - Draws a wind rose for each file.
 - Shows the whole file as a collapsible tree, like a JSON viewer, with paths and explanations for every node.
 - Checks each file for common problems (missing header lines, short records, missing values, odd day lengths).
-- Four themes: White, Night, Clay and Trace.
+- Four themes: White, Night, Clay and Trace (an e-ink and newsprint palette).
+- Fills the whole screen and adapts to phones, tablets, laptops and large monitors in portrait or landscape.
 
 ## Privacy and load
 
