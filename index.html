@@ -241,11 +241,11 @@ svg.spark{display:block}
 .hero{display:flex;flex-direction:column;gap:12px}
 .hero-head{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between;align-items:flex-end}
 .hero-ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.ridgewrap{display:grid;grid-template-columns:minmax(0,min(100%,880px,80vh)) minmax(240px,1fr);gap:clamp(16px,3vw,56px);align-items:center;background:linear-gradient(180deg,var(--panel),var(--bg));border:1px solid var(--line);border-radius:14px;padding:clamp(12px,1.8vw,32px)}
+.ridgewrap{display:grid;grid-template-columns:minmax(0,min(100%,880px,80vh)) minmax(240px,440px);justify-content:center;gap:clamp(16px,3vw,56px);align-items:center;background:linear-gradient(180deg,var(--panel),var(--bg));border:1px solid var(--line);border-radius:14px;padding:clamp(12px,1.8vw,32px)}
 @media (max-width:900px){.ridgewrap{grid-template-columns:1fr}}
 .ridgeplot{min-width:0}
 .ridgeplot canvas{display:block;width:100%}
-.rside{display:flex;flex-direction:column;min-width:0;max-width:560px}
+.rside{display:flex;flex-direction:column;min-width:0}
 .rside .rhead{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-bottom:8px;border-bottom:1px solid var(--line-strong)}
 .rrow{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding-block:12px;border-bottom:1px solid var(--line)}
 .rrow i{width:14px;height:14px;border-radius:3px;background:var(--c)}
@@ -257,6 +257,16 @@ svg.spark{display:block}
 .pickers{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
 .swatch{display:inline-flex;gap:3px;margin-top:6px}
 .swatch i{width:18px;height:8px;border-radius:2px;background:var(--c)}
+.surfwrap canvas{display:block;width:100%}
+details.advanced{border-top:2px solid var(--ink);padding-top:8px}
+details.advanced>summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;padding-block:14px;border-radius:8px}
+details.advanced>summary::-webkit-details-marker{display:none}
+details.advanced>summary::before{content:"+";font-family:var(--display);font-weight:200;font-size:2.2rem;line-height:.8;width:1ch;color:var(--accent)}
+details.advanced[open]>summary::before{content:"−"}
+details.advanced>summary:hover .adv-title{color:var(--accent)}
+.adv-title{font-family:var(--display);font-weight:300;font-size:clamp(1.6rem,1.1vw + 1rem,2.4rem)}
+.adv-sub{color:var(--muted);font-size:.95rem}
+.adv-body{display:flex;flex-direction:column;gap:clamp(24px,2.4vw,44px);padding-top:16px}
 .drop{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 85%,transparent);border:3px dashed var(--accent);display:flex;align-items:center;justify-content:center;text-align:center;font-family:var(--display);font-size:1.8rem;color:var(--accent);z-index:50;padding:20px}
 footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -304,42 +314,26 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
     <div class="ridgewrap"><div class="ridgeplot"><canvas id="ridges" role="img" aria-label="Layered 3D chart of the selected field across the year"></canvas></div><div class="rside" id="rlegend"></div></div>
   </section>
 
-  <section id="s-summary">
-    <div class="sec-head"><span class="eyebrow">Overview</span><h2>At a glance</h2></div>
-    <div class="cols" id="c-summary"></div>
-  </section>
 
-  <section id="s-anatomy">
-    <div class="sec-head">
-      <span class="eyebrow">Step 1 · File structure</span>
-      <h2>How the file is laid out</h2>
-      <p class="lede">An EPW is plain text. The first eight lines each start with a keyword and describe the site. Everything after line 8 is the data, one line per hour, usually 8,760 lines. Select a line to see how it splits on commas.</p>
-    </div>
-    <div class="cols" id="c-anatomy"></div>
-  </section>
 
-  <section id="s-header">
-    <div class="sec-head">
-      <span class="eyebrow">Step 2 · Header, decoded</span>
-      <h2>What the header lines mean</h2>
-    </div>
-    <div class="cols" id="c-header"></div>
-  </section>
 
-  <section id="s-fields">
+
+
+
+
+
+  <section id="s-surface">
     <div class="sec-head">
-      <span class="eyebrow">Step 3 · The 35 hourly fields</span>
-      <h2>Field dictionary</h2>
-      <p class="lede">Column position, meaning, units and the code the format uses for "missing", with each file's mean and range. Select a row to chart it. Fields marked <span class="badge" style="margin:0">Radiance</span> are the ones daylight tools such as gendaymtx and gendaylit read.</p>
+      <span class="eyebrow">Every hour of every day</span>
+      <h2>Daily surfaces</h2>
+      <p class="lede">One surface per climate: the year runs along the front edge, the hours of the day recede from midnight at the front to late evening at the back, and height and color show the selected field. Each hour line is smoothed over five days.</p>
     </div>
-    <div class="panel tbl-wrap" style="padding:0">
-      <table id="fieldTable"><thead></thead><tbody></tbody></table>
-    </div>
+    <div class="cols" id="c-surface"></div>
   </section>
 
   <section id="s-explore">
     <div class="sec-head">
-      <span class="eyebrow">Step 4 · One field across the year</span>
+      <span class="eyebrow">Field explorer</span>
       <h2 id="exTitle">Explore a field</h2>
     </div>
     <div class="explorer-bar">
@@ -359,9 +353,54 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
     <div class="cols" id="c-explore"></div>
   </section>
 
+  <section id="s-wind">
+    <div class="sec-head">
+      <span class="eyebrow">Columns 21 and 22 combined</span>
+      <h2>Wind rose</h2>
+      <p class="lede">Wind direction (where the wind comes from, degrees from north) and speed, counted over all hours.</p>
+    </div>
+    <div class="cols" id="c-wind"></div>
+  </section>
+
+  <details class="advanced" id="advanced">
+    <summary><span class="adv-title">Advanced</span><span class="adv-sub">Overview, file structure, header, field dictionary, single records and the file tree</span></summary>
+    <div class="adv-body">
+  <section id="s-summary">
+    <div class="sec-head"><span class="eyebrow">Overview</span><h2>At a glance</h2></div>
+    <div class="cols" id="c-summary"></div>
+  </section>
+
+  <section id="s-anatomy">
+    <div class="sec-head">
+      <span class="eyebrow">1 · File structure</span>
+      <h2>How the file is laid out</h2>
+      <p class="lede">An EPW is plain text. The first eight lines each start with a keyword and describe the site. Everything after line 8 is the data, one line per hour, usually 8,760 lines. Select a line to see how it splits on commas.</p>
+    </div>
+    <div class="cols" id="c-anatomy"></div>
+  </section>
+
+  <section id="s-header">
+    <div class="sec-head">
+      <span class="eyebrow">2 · Header, decoded</span>
+      <h2>What the header lines mean</h2>
+    </div>
+    <div class="cols" id="c-header"></div>
+  </section>
+
+  <section id="s-fields">
+    <div class="sec-head">
+      <span class="eyebrow">3 · The 35 hourly fields</span>
+      <h2>Field dictionary</h2>
+      <p class="lede">Column position, meaning, units and the code the format uses for "missing", with each file's mean and range. Select a row to chart it. Fields marked <span class="badge" style="margin:0">Radiance</span> are the ones daylight tools such as gendaymtx and gendaylit read.</p>
+    </div>
+    <div class="panel tbl-wrap" style="padding:0">
+      <table id="fieldTable"><thead></thead><tbody></tbody></table>
+    </div>
+  </section>
+
   <section id="s-record">
     <div class="sec-head">
-      <span class="eyebrow">Step 5 · A single record</span>
+      <span class="eyebrow">4 · A single record</span>
       <h2>Read one line of data</h2>
       <p class="lede">Pick a date and hour; every file shows its record for that moment. EPW hours run 1 to 24, and hour 1 covers midnight to 1:00. Missing values are flagged.</p>
     </div>
@@ -373,24 +412,18 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
     <div class="cols" id="c-record"></div>
   </section>
 
-  <section id="s-wind">
-    <div class="sec-head">
-      <span class="eyebrow">Columns 21 and 22 combined</span>
-      <h2>Wind rose</h2>
-      <p class="lede">Wind direction (where the wind comes from, degrees from north) and speed, counted over all hours.</p>
-    </div>
-    <div class="cols" id="c-wind"></div>
-  </section>
-
   <section id="s-tree">
     <div class="sec-head">
-      <span class="eyebrow">Advanced · File as a tree</span>
+      <span class="eyebrow">5 · File as a tree</span>
       <h2>Structure explorer</h2>
       <p class="lede">The whole file as nested data, the way an editor shows JSON. Header lines become named objects; the hourly block is grouped month, then day, then record, then field. Branches load when opened. Select a node to see its path, value and meaning.</p>
       <div class="legend-keys"><span class="tk">key</span><span class="tv str">"text"</span><span class="tv num">123</span><span class="tv empty">empty</span><span class="tv miss">missing</span><span class="tc">{ } object · [ ] list</span></div>
     </div>
     <div class="cols" id="c-tree"></div>
   </section>
+
+    </div>
+  </details>
 
   <footer>
     <span>Field definitions follow the EnergyPlus Auxiliary Programs documentation for the EPW format. Design condition labels follow the ASHRAE 2009 layout.</span>
@@ -951,6 +984,7 @@ function drawWind(p,cell){
 }
 const S_WIND={html:()=>`<div class="panel windgrid"><div class="chart"><canvas class="c-rose"></canvas></div><div class="wlegend"></div></div>`};
 function drawCharts(){
+  drawSurfaces();
   drawCompare();
   document.querySelectorAll("#c-explore .cell").forEach(cell=>{const p=PANES.find(x=>x.id===+cell.dataset.id);if(p&&p.E){drawHeat(p,cell);drawMonthly(p,cell);drawAvgDay(p,cell);drawAnnual(p,cell)}});
 }
@@ -1024,7 +1058,7 @@ function drawRidges(animate){
     /* front baseline and month labels along the slope */
     ctx.strokeStyle=muted;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X0,Y0);ctx.lineTo(X1,Y1);ctx.stroke();
     ctx.fillStyle=muted;ctx.font=`350 ${F}px ${css("--body")}`;ctx.textAlign="center";
-    MONTHS.forEach((m,i)=>{if(w<460&&i%2)return;const tt=(MS[i]+MS[i+1])/2/365,x=X0+(X1-X0)*tt,y=Y0+(Y1-Y0)*tt;ctx.save();ctx.translate(x,y+F*1.5);ctx.rotate(ang);ctx.fillText(m.toUpperCase(),0,0);ctx.restore()});
+    MONTHS.forEach((m,i)=>{if(i%(w<400?3:w<560?2:1))return;const tt=(MS[i]+MS[i+1])/2/365,x=X0+(X1-X0)*tt,y=Y0+(Y1-Y0)*tt;ctx.save();ctx.translate(x,y+F*1.5);ctx.rotate(ang);ctx.fillText(m.toUpperCase(),0,0);ctx.restore()});
     /* value axis at the right end */
     const ax=X1+F*.9;ctx.strokeStyle=muted;ctx.beginPath();ctx.moveTo(ax,Y1);ctx.lineTo(ax,Y1-Hs);ctx.stroke();
     ctx.textAlign="left";
@@ -1037,6 +1071,59 @@ function drawRidges(animate){
   const step=now=>{const q=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-q,3);paint(e);if(q<1)ridgeRAF=requestAnimationFrame(step)};
   ridgeRAF=requestAnimationFrame(step);
 }
+
+/* ---------- daily 3D surface per climate ---------- */
+const S_SURFACE={html:p=>`<div class="panel surfwrap"><canvas class="c-surf" role="img" aria-label="3D surface of hour by day values"></canvas><div class="legend"><span class="sMin num"></span><span class="bar sBar"></span><span class="sMax num"></span></div></div>`};
+function hourSeries(E,k){
+  const a=E.data[k],nd=E.dayStart.length,hc=E.data[3];
+  const S=Array.from({length:24},()=>{const x=new Float64Array(nd);x.fill(NaN);return x}),C=Array.from({length:24},()=>new Float64Array(nd));
+  for(let r=0;r<E.N;r++){const v=a[r];if(isNaN(v))continue;const hr=Math.min(23,Math.max(0,(hc[r]|0)-1)),d=E.dayOf[r];S[hr][d]=(isNaN(S[hr][d])?0:S[hr][d])+v;C[hr][d]++}
+  return S.map((row,hr)=>{const avg=row.map((v,d)=>C[hr][d]?v/C[hr][d]:NaN),out=new Float64Array(nd).fill(NaN);
+    for(let d=0;d<nd;d++){let s=0,n=0;for(let j=d-2;j<=d+2;j++){const v=avg[Math.min(nd-1,Math.max(0,j))];if(!isNaN(v)){s+=v;n++}}if(n)out[d]=s/n}return out});
+}
+function drawSurface(p,cell){
+  const E=p.E,cv=cell.querySelector(".c-surf"),k=sel,f=FIELDS[k];
+  const w=Math.max(240,cv.parentElement.clientWidth-parseFloat(getComputedStyle(cv.parentElement).paddingLeft)*2);
+  const h=Math.round(w*.7);const dpr=window.devicePixelRatio||1;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);cv.style.height=h+"px";
+  const ctx=cv.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  if(isNaN(E.stats[k].mean)){noData(ctx,w,h);return}
+  const [lo0,hi0]=rangeFor(E,k);const {lo,hi,t}=niceTicks(lo0,hi0,5);
+  const rows=hourSeries(E,k),F=fs(),ramp=rampFor(k),rf=rampFn(ramp),bg=toHex(css("--bg")),muted=css("--muted"),line=css("--line");
+  /* oblique frame: year runs along the front edge rising right, hours recede up and left */
+  const B=F*3.2,Lm=F*3.6,Rm=F*4.4,T=F*1.4;
+  const depthX=w*.3,depthY=h*.2,slope=h*.08;
+  const X0=Lm+depthX,Y0=h-B,X1=w-Rm,Y1=Y0-slope;
+  const Hs=Math.max(h*.25,Y1-depthY-T-F);
+  const P=(hr,tt,v)=>{const q=hr/23;return [X0+(X1-X0)*tt-q*depthX,Y0+(Y1-Y0)*tt-q*depthY-(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo)*Hs]};
+  const MS=[0,31,59,90,120,151,181,212,243,273,304,334,365];
+  /* floor */
+  ctx.strokeStyle=line;ctx.lineWidth=1;
+  MS.forEach(d=>{const a=P(0,d/365,lo),b=P(23,d/365,lo);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()});
+  [0,6,12,18,23].forEach(hr=>{const a=P(hr,0,lo),b=P(hr,1,lo);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()});
+  /* ridges back (23:00) to front (00:00) */
+  for(let hr=23;hr>=0;hr--){
+    const s=rows[hr],nd=s.length,base0=P(hr,0,lo),base1=P(hr,1,lo);
+    ctx.beginPath();ctx.moveTo(base0[0],base0[1]);
+    for(let d=0;d<nd;d++){const v=isFinite(s[d])?s[d]:lo;const [x,y]=P(hr,nd>1?d/(nd-1):0,v);ctx.lineTo(x,y)}
+    ctx.lineTo(base1[0],base1[1]);ctx.closePath();
+    const yb=(base0[1]+base1[1])/2,g=ctx.createLinearGradient(0,yb,0,yb-Hs);
+    ramp.forEach((c,i)=>g.addColorStop(i/(ramp.length-1),c));
+    ctx.fillStyle=g;ctx.fill();
+    ctx.strokeStyle=`rgba(${hex2rgb(bg).join(",")},.55)`;ctx.lineWidth=1;ctx.beginPath();
+    for(let d=0;d<nd;d++){const v=isFinite(s[d])?s[d]:lo;const [x,y]=P(hr,nd>1?d/(nd-1):0,v);d?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.stroke();
+  }
+  /* labels */
+  const ang=Math.atan2(Y1-Y0,X1-X0);ctx.fillStyle=muted;ctx.font=`350 ${F}px ${css("--body")}`;ctx.textAlign="center";
+  MONTHS.forEach((m,i)=>{if(i%(w<400?3:w<560?2:1))return;const tt=(MS[i]+MS[i+1])/2/365,x=X0+(X1-X0)*tt,y=Y0+(Y1-Y0)*tt;ctx.save();ctx.translate(x,y+F*1.5);ctx.rotate(ang);ctx.fillText(m.toUpperCase(),0,0);ctx.restore()});
+  ctx.textAlign="right";
+  [[0,"00:00"],[6,"06:00"],[12,"12:00"],[18,"18:00"],[23,"24:00"]].forEach(([hr,l])=>{const [x,y]=P(hr,0,lo);ctx.fillText(l,x-F*.6,y+F*.35)});
+  const ax=X1+F*.8;ctx.strokeStyle=muted;ctx.beginPath();ctx.moveTo(ax,Y1);ctx.lineTo(ax,Y1-Hs);ctx.stroke();ctx.textAlign="left";
+  t.forEach(v=>{const y=Y1-(v-lo)/(hi-lo)*Hs;ctx.beginPath();ctx.moveTo(ax,y);ctx.lineTo(ax+F*.4,y);ctx.stroke();ctx.fillText(v.toLocaleString(),ax+F*.7,y+F*.35)});
+  ctx.font=`500 ${fs(.68)}px ${css("--body")}`;ctx.fillStyle=css("--ink");ctx.fillText((f.u||"value").toUpperCase(),ax-F*.2,Y1-Hs-F*.9);
+  cell.querySelector(".sMin").textContent=fmt(lo,f.dp);cell.querySelector(".sMax").textContent=fmt(hi,f.dp)+" "+f.u;
+  cell.querySelector(".sBar").style.background=`linear-gradient(90deg,${ramp.join(",")})`;
+}
+function drawSurfaces(){document.querySelectorAll("#c-surface .cell").forEach(cell=>{const p=PANES.find(x=>x.id===+cell.dataset.id);if(p&&p.E)drawSurface(p,cell)})}
 
 /* ---------- record ---------- */
 const S_RECORD={html:p=>{
@@ -1201,6 +1288,7 @@ function renderAll(){
   fillCols("c-anatomy",S_ANATOMY);
   fillCols("c-header",S_HEADER);
   renderFields();
+  fillCols("c-surface",S_SURFACE);
   fillCols("c-explore",S_EXPLORE);
   fillCols("c-record",S_RECORD);
   fillCols("c-wind",S_WIND);
@@ -1228,8 +1316,8 @@ new MutationObserver(()=>{applyPalette(palKey);setTimeout(redraw,30)}).observe(d
 
 /* ---------- start ---------- */
 buildSelectors();
-palKey=PALETTES[recall("skyvivaldi-palette")]?recall("skyvivaldi-palette"):"theme";
-applySkin(recall("skyvivaldi-skin")||"auto");
+palKey=PALETTES[recall("skyvivaldi-palette")]?recall("skyvivaldi-palette"):"berry";
+applySkin(recall("skyvivaldi-skin")||"trace");
 {const a=newPane(),b=newPane();PANES=[a,b];
  a.E=parseEPW(makeSample("marine"),"marine_sample.epw");a.name="marine_sample.epw";a.sample=true;a.sampleKey="marine";
  b.E=parseEPW(makeSample("desert"),"desert_sample.epw");b.name="desert_sample.epw";b.sample=true;b.sampleKey="desert";}
