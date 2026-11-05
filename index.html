@@ -1,0 +1,1079 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sky Vivaldi</title>
+<meta name="description" content="Sky Vivaldi: open EnergyPlus weather files in the browser, learn their structure, and compare up to four climates side by side.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a6683'/%3E%3Cpath d='M7 22h4v-6H7zm7 0h4V9h-4zm7 0h4V13h-4z' fill='%23fff'/%3E%3C/svg%3E">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>
+/* Layout: an instrument log. Sections run in file order; inside each section one column per loaded EPW so rows line up for comparison. */
+:root{
+  --bg:#edf1f3; --panel:#fbfcfd; --ink:#14232d; --muted:#586a75; --line:#d2dbe1; --line-strong:#a9b7c0;
+  --accent:#0a6683; --accent-soft:#d3e9f0; --warn:#a9521b; --warn-soft:#f6e3d6; --code:#e3eaee;
+  --t-str:#2c7a4b; --t-num:#1d5bb8; --t-key:#6a3d9a;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1519; --panel:#152027; --ink:#dbe5ea; --muted:#8fa2ad; --line:#24343e; --line-strong:#3c515d;
+  --accent:#57b7d3; --accent-soft:#16384a; --warn:#e3925d; --warn-soft:#3b2518; --code:#1b2a33;
+  --t-str:#8fd3a2; --t-num:#7fb6ff; --t-key:#d0a8f0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1519; --panel:#152027; --ink:#dbe5ea; --muted:#8fa2ad; --line:#24343e; --line-strong:#3c515d;
+  --accent:#57b7d3; --accent-soft:#16384a; --warn:#e3925d; --warn-soft:#3b2518; --code:#1b2a33;
+  --t-str:#8fd3a2; --t-num:#7fb6ff; --t-key:#d0a8f0; color-scheme:dark}
+/* Skins chosen in the app override the viewer theme */
+:root[data-skin="white"]{
+  --bg:#ffffff; --panel:#ffffff; --ink:#111a20; --muted:#5d6b74; --line:#e2e7ea; --line-strong:#b4bfc6;
+  --accent:#0a6683; --accent-soft:#e1f0f5; --warn:#a9521b; --warn-soft:#f8e8dc; --code:#f1f4f6;
+  --t-str:#2c7a4b; --t-num:#1d5bb8; --t-key:#6a3d9a; color-scheme:light}
+:root[data-skin="night"]{
+  --bg:#0b1115; --panel:#121c22; --ink:#dbe5ea; --muted:#8a9da8; --line:#22313a; --line-strong:#3a4e5a;
+  --accent:#5cc0dc; --accent-soft:#143444; --warn:#e3925d; --warn-soft:#3b2518; --code:#18252d;
+  --t-str:#8fd3a2; --t-num:#7fb6ff; --t-key:#d0a8f0; color-scheme:dark}
+:root[data-skin="clay"]{
+  --bg:#e6dcd0; --panel:#f2ebe2; --ink:#3a2a20; --muted:#79624f; --line:#d4c5b4; --line-strong:#b39d86;
+  --accent:#9c4b28; --accent-soft:#ecd6c7; --warn:#7f5a05; --warn-soft:#efe0bb; --code:#e8ddd1;
+  --t-str:#4c7536; --t-num:#2e5c8a; --t-key:#874062; color-scheme:light}
+:root[data-skin="trace"]{
+  --bg:#f2efdc; --panel:#f9f7ea; --ink:#2b2b27; --muted:#6a685c; --line:#dcd6bb; --line-strong:#b6af8d;
+  --accent:#c03a29; --accent-soft:#f3dccf; --warn:#9b520c; --warn-soft:#f1e0c2; --code:#ebe7d0;
+  --t-str:#3a6c3a; --t-num:#2a4e88; --t-key:#7a3f7a; color-scheme:light;
+  --display:"Architects Daughter","Comic Sans MS",cursive}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 60px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+:root[data-skin="trace"] body{background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:24px 24px;background-attachment:fixed}
+.wrap{max-width:1600px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:2.6rem}
+h2{font-size:1.75rem}
+h3{font-size:1.12rem}
+p{margin:0}
+.lede{color:var(--muted);max-width:70ch}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header.top{display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:16px}
+.themepick{display:flex;flex-direction:column;gap:4px;font-size:.75rem;color:var(--muted)}
+.btn{border:1px solid var(--line-strong);background:var(--panel);padding:7px 13px;border-radius:6px;cursor:pointer;font-weight:600;font-size:.9rem;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.btn.primary:hover{filter:brightness(1.08);color:var(--bg)}
+.btn.sm{padding:4px 9px;font-size:.8rem}
+select.sel{padding:6px 9px;border:1px solid var(--line-strong);border-radius:6px;background:var(--panel);max-width:100%}
+
+/* pane bar */
+.panebar{position:sticky;top:env(safe-area-inset-top,0px);z-index:8;background:var(--bg);padding-block:10px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr)) auto;gap:12px;align-items:stretch}
+.phead{border:1px solid var(--line);border-top:4px solid var(--pc);background:var(--panel);border-radius:6px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+.phead.dragover{outline:2px dashed var(--pc);outline-offset:2px}
+.pletter{font-family:var(--display);font-weight:700;font-size:1.3rem;color:var(--pc);width:20px;text-align:center}
+.pname{flex:1;min-width:110px;overflow:hidden}
+.pname b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pname small{display:block;color:var(--muted);font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pname small.sample{color:var(--warn)}
+.pacts{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pacts select{padding:4px 6px;font-size:.8rem;border:1px solid var(--line-strong);border-radius:6px;background:var(--panel);max-width:150px}
+.xbtn{border:0;background:none;cursor:pointer;color:var(--muted);font-size:1.2rem;line-height:1;padding:2px 6px;border-radius:4px}
+.xbtn:hover{color:var(--warn);background:var(--warn-soft)}
+.addbtn{border:1px dashed var(--line-strong);background:transparent;border-radius:6px;min-width:56px;font-size:1.6rem;color:var(--accent);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;padding:6px 10px}
+.addbtn small{font-size:.66rem;color:var(--muted);font-family:var(--body);margin-top:3px}
+.addbtn:hover{border-color:var(--accent);background:var(--accent-soft)}
+.addbtn:disabled{opacity:.4;cursor:not-allowed}
+.err{color:var(--warn);font-weight:600;font-size:.8rem;flex-basis:100%}
+@media (max-width:720px){.panebar{grid-template-columns:1fr;position:static}.addbtn{flex-direction:row;gap:8px;font-size:1.2rem}}
+
+section{display:flex;flex-direction:column;gap:14px}
+.sec-head{display:flex;flex-direction:column;gap:6px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+.cols{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:16px;align-items:start}
+@media (max-width:720px){.cols{grid-template-columns:1fr}}
+.cell{min-width:0;container-type:inline-size;display:flex;flex-direction:column;gap:12px}
+.ptag{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;color:var(--muted);min-width:0}
+.ptag::before{content:attr(data-l);display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:var(--pc);color:#fff;font-family:var(--display);font-size:.85rem}
+.ptag span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.emptycell{border:1px dashed var(--line-strong);border-radius:8px;padding:24px 16px;color:var(--muted);text-align:center;font-size:.9rem}
+
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.summary div{background:var(--panel);padding:10px 12px;min-width:0}
+.summary .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.summary .v{font-family:var(--display);font-size:1.35rem;font-weight:600;overflow-wrap:anywhere}
+.summary .wide{grid-column:1/-1}
+@container (max-width:460px){.summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.summary .v small{font-family:var(--body);font-size:.78rem;color:var(--muted);font-weight:400}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.chk{display:inline-flex;gap:6px;align-items:baseline;font-size:.8rem;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:4px 10px;max-width:100%}
+.chk b{font-family:var(--mono);font-size:.66rem;letter-spacing:.06em}
+.chk.ok b{color:var(--accent)}
+.chk.warn{border-color:var(--warn)}
+.chk.warn b{color:var(--warn)}
+
+/* anatomy */
+.anatomy{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);gap:14px}
+@container (max-width:640px){.anatomy{grid-template-columns:1fr}}
+.stack{display:flex;flex-direction:column;gap:4px}
+.lineBtn{display:grid;grid-template-columns:42px 1fr auto;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:5px;padding:6px 10px;cursor:pointer;min-width:0}
+.lineBtn:hover{border-color:var(--line-strong)}
+.lineBtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.lineBtn .ln{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+.lineBtn .kw{font-family:var(--mono);font-size:.76rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lineBtn .ct{font-size:.72rem;color:var(--muted)}
+.lineBtn.data{padding-block:18px;background:repeating-linear-gradient(0deg,var(--code) 0 2px,transparent 2px 6px)}
+.lineBtn.data[aria-pressed="true"]{background:var(--accent-soft)}
+.inspect .what{color:var(--muted);margin:4px 0 12px;max-width:72ch}
+.raw{font-family:var(--mono);font-size:.76rem;background:var(--code);border-radius:6px;padding:10px 12px;overflow-x:auto;white-space:pre;margin-bottom:12px}
+.toks{display:flex;flex-wrap:wrap;gap:6px}
+.tok{display:inline-flex;flex-direction:column;border:1px solid var(--line);border-radius:5px;padding:3px 7px;min-width:0;max-width:100%}
+.tok i{font-style:normal;font-family:var(--mono);font-size:.62rem;color:var(--muted)}
+.tok b{font-family:var(--mono);font-size:.78rem;font-weight:500;overflow-wrap:anywhere}
+.tok span{font-size:.7rem;color:var(--accent)}
+.tok.kwd{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tok.kwd i{color:var(--bg);opacity:.7}
+
+.hgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:10px 0 0}
+dl.kv dt{color:var(--muted);font-size:.85rem}
+dl.kv dd{margin:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+td.r,th.r{text-align:right}
+.tag{display:inline-block;font-size:.7rem;font-weight:600;padding:1px 7px;border-radius:999px;border:1px solid currentColor}
+.tag.ext{color:var(--warn)}
+.tag.typ{color:var(--accent)}
+
+#fieldTable{min-width:760px}
+#fieldTable tr.grp td{background:var(--code);font-family:var(--display);font-size:1rem;font-weight:600;letter-spacing:.02em}
+#fieldTable tbody tr.f{cursor:pointer}
+#fieldTable tbody tr.f:hover td{background:var(--accent-soft)}
+#fieldTable tbody tr.f.sel td{background:var(--accent-soft)}
+#fieldTable tbody tr.f.sel td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+#fieldTable td.idx{font-family:var(--mono);color:var(--muted)}
+#fieldTable .desc{color:var(--muted);font-size:.78rem;max-width:42ch}
+#fieldTable th.pc{border-top:3px solid var(--pc)}
+.stat3{white-space:nowrap;font-variant-numeric:tabular-nums}
+.stat3 small{color:var(--muted);display:block;font-size:.72rem}
+.badge{font-size:.66rem;font-weight:600;padding:1px 6px;border-radius:4px;background:var(--accent);color:var(--bg);margin-left:6px;white-space:nowrap}
+.miss-hi{color:var(--warn);font-weight:600}
+svg.spark{display:block}
+
+.explorer-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line-strong);background:var(--panel);border-radius:999px;padding:3px 11px;font-size:.8rem;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.toggle{display:inline-flex;gap:6px;align-items:center;font-size:.85rem;cursor:pointer}
+.chart{position:relative;min-width:0}
+.chart canvas{display:block;width:100%}
+.chart .cap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 8px;align-items:baseline;margin-bottom:8px}
+.chart .cap p{color:var(--muted);font-size:.8rem}
+.legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.76rem;color:var(--muted);margin-top:8px}
+.legend .bar{height:10px;flex:1;min-width:60px;max-width:220px;border-radius:3px}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.76rem;padding:5px 8px;border-radius:5px;white-space:nowrap;z-index:5;font-variant-numeric:tabular-nums}
+.cmpgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:820px){.cmpgrid{grid-template-columns:1fr}}
+.plegend{display:flex;flex-wrap:wrap;gap:12px;font-size:.82rem}
+.plegend span{display:inline-flex;align-items:center;gap:6px}
+.plegend i{display:inline-block;width:16px;height:3px;background:var(--pc);border-radius:2px}
+.field-note{display:flex;flex-direction:column;gap:4px}
+.field-note .unit{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+
+.recbar{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.recbar label{display:flex;flex-direction:column;gap:3px;font-size:.76rem;color:var(--muted)}
+.recbar select,.recbar input{padding:7px 10px;border:1px solid var(--line-strong);border-radius:6px;background:var(--panel);width:110px}
+.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.rc{border:1px solid var(--line);border-radius:5px;padding:5px 8px;min-width:0}
+.rc .h{display:flex;justify-content:space-between;gap:6px;font-size:.68rem;color:var(--muted)}
+.rc .h i{font-style:normal;font-family:var(--mono)}
+.rc .val{font-family:var(--mono);font-size:.9rem;overflow-wrap:anywhere}
+.rc .val small{font-family:var(--body);font-size:.7rem;color:var(--muted);margin-left:4px}
+.rc.missing{border-color:var(--warn);background:var(--warn-soft)}
+.rc.missing .val{color:var(--warn)}
+.rc.rad{border-color:var(--accent)}
+
+.windgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,200px);gap:16px;align-items:center}
+@container (max-width:520px){.windgrid{grid-template-columns:1fr}}
+.wlegend{display:flex;flex-direction:column;gap:5px;font-size:.84rem}
+.wlegend span.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:8px}
+
+/* tree explorer */
+.treegrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,320px);gap:14px;align-items:start}
+@container (max-width:760px){.treegrid{grid-template-columns:1fr}}
+.treebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.tree{font-family:var(--mono);font-size:.78rem;line-height:1.75;overflow:auto;max-height:620px;padding:8px 4px}
+.tl{display:flex;align-items:center;gap:6px;white-space:nowrap;border-radius:4px;padding:0 6px 0 2px;cursor:pointer;min-width:max-content}
+.tl:hover{background:var(--code)}
+.tl.on{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)}
+.caret{width:16px;height:16px;border:0;background:none;padding:0;cursor:pointer;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.caret svg{transition:transform .12s}
+.caret[aria-expanded="true"] svg{transform:rotate(90deg)}
+.caret.blank{visibility:hidden}
+.tk{color:var(--t-key)}
+.tk.idx{color:var(--muted)}
+.tv.str{color:var(--t-str)}
+.tv.num{color:var(--t-num)}
+.tv.empty,.tv.null{color:var(--muted);font-style:italic}
+.tv.miss{color:var(--warn)}
+.tc{color:var(--muted)}
+.tn-note{color:var(--muted);font-family:var(--body);font-size:.74rem}
+.tline{font-size:.66rem;padding:0 5px;border-radius:3px;background:var(--code);color:var(--muted)}
+.tkids{margin-left:9px;padding-left:8px;border-left:1px solid var(--line)}
+.tdetail{display:flex;flex-direction:column;gap:10px}
+.tpath{font-family:var(--mono);font-size:.78rem;background:var(--code);border-radius:5px;padding:8px 10px;overflow-wrap:anywhere}
+.tval{font-family:var(--mono);font-size:.78rem;max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);border-radius:5px;padding:8px 10px}
+.legend-keys{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:.72rem}
+
+.drop{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 85%,transparent);border:3px dashed var(--accent);display:flex;align-items:center;justify-content:center;text-align:center;font-family:var(--display);font-size:1.8rem;color:var(--accent);z-index:50;padding:20px}
+footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+      <span class="eyebrow">EnergyPlus weather files</span>
+      <h1>Sky Vivaldi</h1>
+      <p style="font-family:var(--display);font-size:1.3rem;color:var(--accent)">Four climates, side by side.</p>
+      <p class="lede">Open up to four .epw files side by side. Each section lines the files up in columns: header lines, the 35 hourly fields, charts, single records and the full file tree. Files are read in your browser and never uploaded.</p>
+    </div>
+    <label class="themepick" for="skinSel">Theme
+      <select class="sel" id="skinSel">
+        <option value="auto">Match system</option>
+        <option value="white">White</option>
+        <option value="night">Night</option>
+        <option value="clay">Clay</option>
+        <option value="trace">Trace</option>
+      </select>
+    </label>
+  </header>
+
+  <div class="panebar" id="panebar"></div>
+
+  <section id="s-summary">
+    <div class="sec-head"><span class="eyebrow">Overview</span><h2>At a glance</h2></div>
+    <div class="cols" id="c-summary"></div>
+  </section>
+
+  <section id="s-anatomy">
+    <div class="sec-head">
+      <span class="eyebrow">Step 1 · File structure</span>
+      <h2>How the file is laid out</h2>
+      <p class="lede">An EPW is plain text. The first eight lines each start with a keyword and describe the site. Everything after line 8 is the data, one line per hour, usually 8,760 lines. Select a line to see how it splits on commas.</p>
+    </div>
+    <div class="cols" id="c-anatomy"></div>
+  </section>
+
+  <section id="s-header">
+    <div class="sec-head">
+      <span class="eyebrow">Step 2 · Header, decoded</span>
+      <h2>What the header lines mean</h2>
+    </div>
+    <div class="cols" id="c-header"></div>
+  </section>
+
+  <section id="s-fields">
+    <div class="sec-head">
+      <span class="eyebrow">Step 3 · The 35 hourly fields</span>
+      <h2>Field dictionary</h2>
+      <p class="lede">Column position, meaning, units and the code the format uses for "missing", with each file's mean and range. Select a row to chart it. Fields marked <span class="badge" style="margin:0">Radiance</span> are the ones daylight tools such as gendaymtx and gendaylit read.</p>
+    </div>
+    <div class="panel tbl-wrap" style="padding:0">
+      <table id="fieldTable"><thead></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <section id="s-explore">
+    <div class="sec-head">
+      <span class="eyebrow">Step 4 · One field across the year</span>
+      <h2 id="exTitle">Explore a field</h2>
+    </div>
+    <div class="explorer-bar">
+      <select class="sel" id="fieldSel" aria-label="Field to chart"></select>
+      <div class="chips" id="quickChips"></div>
+      <label class="toggle" for="sharedScale"><input type="checkbox" id="sharedScale" checked> Same scale for all files</label>
+    </div>
+    <div class="panel field-note" id="fieldNote"></div>
+    <div id="cmpBlock" class="panel" hidden>
+      <div class="cap" style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:10px"><h3>Files compared</h3><div class="plegend" id="cmpLegend"></div></div>
+      <div class="cmpgrid">
+        <div class="chart"><p class="tn-note" style="margin-bottom:6px">Monthly mean</p><canvas id="cmpMonthly"></canvas></div>
+        <div class="chart"><p class="tn-note" style="margin-bottom:6px" id="cmpDayLbl">Average day</p><canvas id="cmpDay"></canvas></div>
+      </div>
+    </div>
+    <div class="chips" id="monthChips" aria-label="Month for average day charts"></div>
+    <div class="cols" id="c-explore"></div>
+  </section>
+
+  <section id="s-record">
+    <div class="sec-head">
+      <span class="eyebrow">Step 5 · A single record</span>
+      <h2>Read one line of data</h2>
+      <p class="lede">Pick a date and hour; every file shows its record for that moment. EPW hours run 1 to 24, and hour 1 covers midnight to 1:00. Missing values are flagged.</p>
+    </div>
+    <div class="recbar">
+      <label for="recMonth">Month<select id="recMonth"></select></label>
+      <label for="recDay">Day<input id="recDay" type="number" min="1" max="31" value="21"></label>
+      <label for="recHour">Hour (1 to 24)<input id="recHour" type="number" min="1" max="24" value="13"></label>
+    </div>
+    <div class="cols" id="c-record"></div>
+  </section>
+
+  <section id="s-wind">
+    <div class="sec-head">
+      <span class="eyebrow">Columns 21 and 22 combined</span>
+      <h2>Wind rose</h2>
+      <p class="lede">Wind direction (where the wind comes from, degrees from north) and speed, counted over all hours.</p>
+    </div>
+    <div class="cols" id="c-wind"></div>
+  </section>
+
+  <section id="s-tree">
+    <div class="sec-head">
+      <span class="eyebrow">Advanced · File as a tree</span>
+      <h2>Structure explorer</h2>
+      <p class="lede">The whole file as nested data, the way an editor shows JSON. Header lines become named objects; the hourly block is grouped month, then day, then record, then field. Branches load when opened. Select a node to see its path, value and meaning.</p>
+      <div class="legend-keys"><span class="tk">key</span><span class="tv str">"text"</span><span class="tv num">123</span><span class="tv empty">empty</span><span class="tv miss">missing</span><span class="tc">{ } object · [ ] list</span></div>
+    </div>
+    <div class="cols" id="c-tree"></div>
+  </section>
+
+  <footer>
+    <span>Field definitions follow the EnergyPlus Auxiliary Programs documentation for the EPW format. Design condition labels follow the ASHRAE 2009 layout.</span>
+    <span>Sample files are synthetic and only for learning. Drop one or several .epw files anywhere on the page to load them.</span>
+  </footer>
+</div>
+<div class="drop" id="drop" hidden>Drop .epw files to load them</div>
+<input type="file" id="fileIn" accept=".epw,.EPW,text/plain" hidden multiple>
+
+<script>
+"use strict";
+const GROUPS={time:"Time stamp",temp:"Temperature and moisture",solar:"Solar radiation",illum:"Daylight illuminance",wind:"Wind",sky:"Sky and visibility",wx:"Weather codes",atm:"Atmosphere and precipitation"};
+const F=(n,u,miss,g,kind,dp,d,rad)=>({n,u,miss,g,kind,dp,d,rad:!!rad});
+const FIELDS=[
+ F("Year","",null,"time","time",0,"Source year of this record. Typical year files (TMY) splice months from different years, so this often changes month to month."),
+ F("Month","",null,"time","time",0,"1 to 12."),
+ F("Day","",null,"time","time",0,"Day of the month."),
+ F("Hour","",null,"time","time",0,"1 to 24. Hour 1 is the interval ending at 1:00."),
+ F("Minute","",null,"time","time",0,"Usually 0 or 60 for hourly files. Rarely meaningful."),
+ F("Data source and uncertainty flags","",null,"time","text",0,"A packed string of letter and digit pairs saying where each value came from and how uncertain it is. ? means unknown."),
+ F("Dry bulb temperature","°C",99.9,"temp","num",1,"Air temperature. The most used field in energy models."),
+ F("Dew point temperature","°C",99.9,"temp","num",1,"Temperature at which the air would saturate. Sets moisture content."),
+ F("Relative humidity","%",999,"temp","num",0,"Moisture relative to saturation at the dry bulb temperature."),
+ F("Atmospheric station pressure","Pa",999999,"temp","num",0,"Pressure at station elevation, not corrected to sea level."),
+ F("Extraterrestrial horizontal radiation","Wh/m²",9999,"solar","num",0,"Sun energy on a horizontal surface at the top of the atmosphere. Calculated, not measured."),
+ F("Extraterrestrial direct normal radiation","Wh/m²",9999,"solar","num",0,"Top of atmosphere beam energy perpendicular to the sun. Calculated."),
+ F("Horizontal infrared radiation intensity","Wh/m²",9999,"solar","num",0,"Long wave radiation from the sky. Drives night sky cooling."),
+ F("Global horizontal radiation","Wh/m²",9999,"solar","num",0,"Total solar energy on a flat roof during the hour: direct plus diffuse.",1),
+ F("Direct normal radiation","Wh/m²",9999,"solar","num",0,"Beam radiation measured facing the sun. Defines the sun component of a sky model.",1),
+ F("Diffuse horizontal radiation","Wh/m²",9999,"solar","num",0,"Sky radiation on a flat surface, excluding the sun disc. Defines the sky dome brightness.",1),
+ F("Global horizontal illuminance","lux",999999,"illum","num",0,"Visible light on a horizontal surface, weighted to human vision."),
+ F("Direct normal illuminance","lux",999999,"illum","num",0,"Visible beam light facing the sun."),
+ F("Diffuse horizontal illuminance","lux",999999,"illum","num",0,"Visible sky light on a horizontal surface."),
+ F("Zenith luminance","Cd/m²",9999,"illum","num",0,"Brightness of the sky straight overhead."),
+ F("Wind direction","degrees",999,"wind","num",0,"Direction the wind blows from, clockwise from north. 0 with 0 speed means calm."),
+ F("Wind speed","m/s",999,"wind","num",1,"Usually measured at 10 m height."),
+ F("Total sky cover","tenths",99,"sky","num",0,"Fraction of sky covered by any cloud, 0 to 10."),
+ F("Opaque sky cover","tenths",99,"sky","num",0,"Fraction covered by clouds you cannot see through, 0 to 10."),
+ F("Visibility","km",9999,"sky","num",1,"Horizontal visibility."),
+ F("Ceiling height","m",99999,"sky","num",0,"Height of the cloud base. 77777 means unlimited (clear)."),
+ F("Present weather observation","",null,"wx","code",0,"0 means the weather codes in the next column are valid; 9 means they are not."),
+ F("Present weather codes","",null,"wx","text",0,"Nine digit code describing rain, snow, fog and so on. 999999999 means none observed."),
+ F("Precipitable water","mm",999,"atm","num",0,"Total water vapor in a column of atmosphere."),
+ F("Aerosol optical depth","thousandths",.999,"atm","num",3,"Haze and particulates. Affects clear sky radiation."),
+ F("Snow depth","cm",999,"atm","num",0,"Snow on the ground."),
+ F("Days since last snowfall","days",99,"atm","num",0,"88 is commonly used for none recorded."),
+ F("Albedo","ratio",999,"atm","num",2,"Ground reflectance, 0 to 1."),
+ F("Liquid precipitation depth","mm",999,"atm","num",1,"Rain that fell during the period below."),
+ F("Liquid precipitation quantity","hr",99,"atm","num",0,"Period over which the precipitation depth was measured.")
+];
+const HEADER_INFO={
+ "LOCATION":"Site name, region, country, data source, WMO station number, latitude, longitude, time zone (hours from GMT) and elevation in meters.",
+ "DESIGN CONDITIONS":"ASHRAE design day values used to size heating and cooling equipment. A long, fixed order list of numbers in heating, cooling and extremes groups.",
+ "TYPICAL/EXTREME PERIODS":"Weeks picked out as typical or extreme for each season. Simulation tools use these for short design runs.",
+ "GROUND TEMPERATURES":"Monthly undisturbed ground temperatures at several depths, used for slab and basement heat loss.",
+ "HOLIDAYS/DAYLIGHT SAVINGS":"Whether leap years are observed, daylight saving start and end dates, and a list of holidays.",
+ "COMMENTS 1":"Free text, usually describing the data source.",
+ "COMMENTS 2":"More free text, often the source years or processing notes.",
+ "DATA PERIODS":"How many data periods follow, records per hour, the period name, the starting day of the week, and start and end dates."
+};
+const KEYS=Object.keys(HEADER_INFO);
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const RAMP_SEQ=["#25184f","#2c3f86","#1f7895","#2aa48a","#8fc957","#f4dc3c"];
+const RAMP_TEMP=["#2a3c8e","#3b7dbf","#8ec4dc","#efe6aa","#f2a14a","#cc472f","#7a1c2c"];
+const WIND_COLS=["#a9dbe6","#5fb4cc","#2b86a8","#1c567c","#132f55"];
+const PCOL=["#2f7fb8","#d4762a","#3d9a5c","#9b55a5"];
+const LETTERS=["A","B","C","D"];
+const MAXP=4;
+
+/* ---------- synthetic samples ---------- */
+const SAMPLES={
+ marine:{label:"Marine (synthetic)",city:"Seattle Tacoma Intl AP",st:"WA",wmo:"727930",lat:47.46,lon:-122.31,tz:-8,elev:132,tAvg:11.2,tAmp:6.8,cloud:.82,cloudDrop:.5,dew:1.5,dewDry:6,winter:195,summer:340,wind:2.6,seed:11,yrs:[1995,1991,2003,1999,1987,2005,1994,2001,1998,1990,2004,1996],
+  dc:"Heating,12,-4.6,-2.1,-12.4,1.2,-1,-9.8,1.5,0.4,14.3,7.8,12.6,7.3,2.7,90,Cooling,8,9.6,30.6,18.5,28.4,17.9,26.3,17.2,19.6,27.4,18.7,26.1,17.9,24.9,3.8,0,16.3,11.7,22.5,15.4,10.9,21.4,14.6,10.4,20.5,56.6,27.4,53.9,26.2,51.5,25,659,Extremes,9.9,8.8,7.9,32.6,-6.6,35.6,2.5,1.9,-8.4,37,-9.9,38.1,-11.3,39.2,-13,40.6"},
+ desert:{label:"Hot desert (synthetic)",city:"Phoenix Sky Harbor Intl AP",st:"AZ",wmo:"722780",lat:33.45,lon:-111.98,tz:-7,elev:337,tAvg:24.2,tAmp:9.8,cloud:.28,cloudDrop:.12,dew:13,dewDry:6,winter:90,summer:250,wind:2.4,seed:23,yrs:[1997,1992,1988,2002,1999,2006,1990,1995,2001,2004,1993,1998],
+  dc:"Heating,12,3.7,5.4,-11.2,1.6,13.6,-8.9,2,13.3,9.4,15.3,8.4,16.1,2.4,90,Cooling,7,13,43.6,21.2,42.4,21.1,41.3,20.9,24.5,35.2,23.9,35.1,23.4,34.9,4.1,270,22.4,17.5,29.6,21.6,16.8,29.2,20.9,16,29,80.7,34.8,77.8,34.8,75.4,34.6,1061,Extremes,10.6,9.1,7.9,26.6,0.2,46.5,1.8,1.4,-1.1,47.5,-2.1,48.3,-3.1,49.1,-4.4,50.1"},
+ cold:{label:"Cold continental (synthetic)",city:"Minneapolis St Paul Intl AP",st:"MN",wmo:"726580",lat:44.88,lon:-93.23,tz:-6,elev:255,tAvg:7.8,tAmp:15.5,cloud:.62,cloudDrop:.25,dew:4,dewDry:4,winter:315,summer:170,wind:3.6,seed:37,yrs:[1983,1990,2000,1995,1999,1988,1996,2003,1987,1994,1992,1998],
+  dc:"Heating,1,-25.8,-23.2,-30,0.3,-25,-27.8,0.4,-22.9,11.2,-6.3,10,-4.2,4.2,320,Cooling,7,10.8,32.6,22.6,30.9,21.8,29.4,20.8,24.8,30.1,23.6,28.7,22.6,27.4,4.6,180,22.6,17.6,28.1,21.5,16.3,27,20.5,15.2,25.8,75.3,30.7,71.2,29.1,67.4,27.6,826,Extremes,11.5,10.2,9.2,28.7,-30.5,35.6,3.5,2.3,-33,37.3,-35.1,38.6,-37.1,39.9,-39.7,41.6"}
+};
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function makeSample(key){
+  const S=SAMPLES[key]||SAMPLES.marine;
+  const R=mulberry32(S.seed),g=()=>{let s=0;for(let i=0;i<4;i++)s+=R();return (s-2)*1.73};
+  const {lat,lon,tz}=S,dim=[31,28,31,30,31,30,31,31,30,31,30,31];
+  const gt=d=>MONTHS.map((_,m)=>(S.tAvg-S.tAmp*Math.cos(2*Math.PI*(m-.6-d*.9)/12)/(1+d*.9)).toFixed(2)).join(",");
+  const L=[
+   `LOCATION,${S.city},${S.st},USA,SYNTHETIC SAMPLE,${S.wmo},${S.lat},${S.lon},${S.tz.toFixed(1)},${S.elev.toFixed(1)}`,
+   `DESIGN CONDITIONS,1,Climate Design Data 2009 ASHRAE Handbook,,${S.dc}`,
+   "TYPICAL/EXTREME PERIODS,6,Summer - Week Nearest Max Temperature For Period,Extreme,7/27,8/ 2,Summer - Week Nearest Average Temperature For Period,Typical,8/10,8/16,Winter - Week Nearest Min Temperature For Period,Extreme,12/22,12/28,Winter - Week Nearest Average Temperature For Period,Typical,1/27,2/ 2,Autumn - Week Nearest Average Temperature For Period,Typical,10/20,10/26,Spring - Week Nearest Average Temperature For Period,Typical,4/12,4/18",
+   `GROUND TEMPERATURES,3,.5,,,,${gt(.5)},2,,,,${gt(2)},4,,,,${gt(4)}`,
+   "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0",
+   "COMMENTS 1,Synthetic sample generated in the browser for learning the EPW format. Not measured weather.",
+   `COMMENTS 2, Loosely modeled on a ${S.label.replace(" (synthetic)","").toLowerCase()} climate; values are plausible but invented.`,
+   "DATA PERIODS,1,1,Data,Sunday, 1/ 1,12/31"
+  ];
+  const FLAGS="?9?9?9?9E0?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9*9*9?9?9?9";
+  let doy=0,cloud=.5,tAnom=0;
+  for(let m=0;m<12;m++)for(let d=1;d<=dim[m];d++){
+    doy++;
+    const summer=.5-.5*Math.cos(2*Math.PI*(doy-20)/365);
+    cloud=Math.min(1,Math.max(0,.55*cloud+.45*(S.cloud-S.cloudDrop*summer+.35*g())));
+    tAnom=.7*tAnom+1.3*g();
+    const tMean=S.tAvg-S.tAmp*Math.cos(2*Math.PI*(doy-22)/365)+tAnom;
+    const amp=2.2+4.5*(1-cloud)*(.6+.6*summer);
+    const I0=1367*(1+.033*Math.cos(2*Math.PI*doy/365));
+    const prevail=summer>.55?(S.summer+40*g()+360)%360:(S.winter+35*g()+360)%360;
+    const rainDay=cloud>.78&&R()<.75;
+    for(let h=1;h<=24;h++){
+      const hm=h-.5,B=2*Math.PI*(doy-81)/364;
+      const eot=9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B);
+      const dec=23.45*Math.sin(2*Math.PI*(284+doy)/365)*Math.PI/180;
+      const lst=hm+(4*(lon-15*tz)+eot)/60,ha=(lst-12)*15*Math.PI/180,ph=lat*Math.PI/180;
+      const cz=Math.sin(ph)*Math.sin(dec)+Math.cos(ph)*Math.cos(dec)*Math.cos(ha);
+      const c=Math.min(1,Math.max(0,cloud+.12*g()));
+      const T=tMean+amp*Math.cos(2*Math.PI*(hm-15)/24)+.35*g();
+      let Td=tMean-(S.dew+S.dewDry*(1-cloud)*summer)+.5*g();if(Td>T)Td=T-.1*R();
+      const es=t=>6.112*Math.exp(17.62*t/(243.12+t));
+      const RH=Math.max(3,Math.min(100,100*es(Td)/es(T)));
+      const P=101325*Math.pow(1-2.25577e-5*S.elev,5.2559)-1100*(cloud-.5)+180*g();
+      let etr=0,etrn=0,ghi=0,dni=0,dhi=0;
+      if(cz>0.01){
+        etr=I0*cz;etrn=I0;
+        const am=1/(cz+.50572*Math.pow(96.07995-Math.acos(cz)*180/Math.PI,-1.6364));
+        dni=I0*Math.pow(.7,Math.pow(am,.678))*Math.pow(1-c,1.6);
+        dhi=I0*cz*(.07+.32*c*(1-.55*c));
+        ghi=dni*cz+dhi;
+      }
+      const sky=Math.round(c*10),opq=Math.round(c*8.4);
+      const ir=5.67e-8*Math.pow(T+273.15,4)*(.72+.22*c);
+      let ws=Math.max(0,S.wind+1.4*(1-summer)+1.2*Math.max(0,Math.sin(Math.PI*(h-9)/12))+1.4*g()+(cloud>.8?1.5:0));
+      const wd=ws<.4?0:Math.round((prevail+28*g()+360)%360/10)*10;if(ws<.4)ws=0;
+      const rain=rainDay&&R()<.4?Math.round((.2+1.8*R())*10)/10:0;
+      const vis=c>.85?(8+6*R()):16.1,ceil=sky<2?77777:Math.round(400+3500*(1-c));
+      const row=[S.yrs[m],m+1,d,h,60,FLAGS,T.toFixed(1),Td.toFixed(1),Math.round(RH),Math.round(P),Math.round(etr),Math.round(etrn),Math.round(ir),Math.round(ghi),Math.round(dni),Math.round(dhi),Math.round(ghi*112),Math.round(dni*94),Math.round(dhi*121),Math.round(dhi*28),wd,ws.toFixed(1),sky,opq,vis.toFixed(1),ceil,9,999999999,Math.round(10+14*summer+3*g()),.082,0,88,.16,rain,rain>0?1:0];
+      L.push(row.join(","));
+    }
+  }
+  return L.join("\n");
+}
+
+/* ---------- parser ---------- */
+function parseEPW(text,name){
+  text=String(text).replace(/^﻿/,"");
+  const lines=text.split(/\r\n|\r|\n/);
+  const headers=[],checks=[];let i=0;
+  while(i<lines.length&&headers.length<8){
+    const tr=lines[i].trim();
+    if(!tr){i++;continue}
+    const up=tr.toUpperCase(),key=KEYS.find(k=>up.startsWith(k));
+    if(!key)break;
+    if(headers.some(h=>h.key===key))checks.push({w:1,t:`${key} appears more than once; only the first is used.`});
+    else headers.push({line:i+1,key,raw:tr,tok:tr.split(",")});
+    i++;
+  }
+  if(!headers.length||headers[0].key!=="LOCATION")throw new Error("The first line should start with LOCATION. This does not look like an EPW file.");
+  const missingH=KEYS.filter(k=>!headers.some(h=>h.key===k));
+  checks.push(missingH.length?{w:1,t:`Header has ${headers.length} of 8 lines. Missing: ${missingH.join(", ")}.`}:{t:"All 8 header lines present."});
+  const rows=[],rowLine=[];let skipped=0,shortR=0,longR=0,firstSkip=0;
+  for(;i<lines.length;i++){
+    const ln=lines[i];if(!ln.trim())continue;
+    const t=ln.split(",");
+    const m=+t[1],d=+t[2],h=+t[3];
+    if(t.length<6||!Number.isInteger(m)||m<1||m>12||!Number.isInteger(d)||d<1||d>31||!Number.isInteger(h)||h<0||h>24){skipped++;if(!firstSkip)firstSkip=i+1;continue}
+    if(t.length<35){shortR++;while(t.length<35)t.push("")}else if(t.length>35)longR++;
+    rows.push(t);rowLine.push(i+1);
+  }
+  if(rows.length<24)throw new Error(`Found the header but only ${rows.length} usable data lines. The file may be truncated or not comma separated.`);
+  const N=rows.length,firstDataLine=rowLine[0];
+  const data=FIELDS.map((f,k)=>{
+    if(f.kind==="text")return null;
+    const a=new Float64Array(N);
+    for(let r=0;r<N;r++){const s=rows[r][k],v=s===""?NaN:Number(s);a[r]=(!isFinite(v)||(f.miss!=null&&v>=f.miss))?NaN:v}
+    return a;
+  });
+  const stats=FIELDS.map((f,k)=>{
+    const a=data[k];if(!a)return null;
+    let mn=Infinity,mx=-Infinity,s=0,n=0;const ms=new Array(12).fill(0),mc=new Array(12).fill(0);
+    for(let r=0;r<N;r++){const v=a[r];if(isNaN(v))continue;if(v<mn)mn=v;if(v>mx)mx=v;s+=v;n++;const mo=data[1][r]-1;ms[mo]+=v;mc[mo]++}
+    return {min:n?mn:NaN,max:n?mx:NaN,mean:n?s/n:NaN,miss:N-n,monthly:ms.map((v,j)=>mc[j]?v/mc[j]:NaN)};
+  });
+  const dayStart=[],dayLen=[],dayMonth=[],dayDay=[],dayOf=new Int32Array(N),slot=new Int32Array(N);let pk=-1,outOfOrder=0;
+  for(let r=0;r<N;r++){const key=data[1][r]*100+data[2][r];if(key!==pk){if(key<pk)outOfOrder++;dayStart.push(r);dayLen.push(0);dayMonth.push(data[1][r]);dayDay.push(data[2][r]);pk=key}const di=dayStart.length-1;dayOf[r]=di;slot[r]=dayLen[di]++}
+  const dp=headers.find(h=>h.key==="DATA PERIODS");
+  let rph=dp?parseInt(dp.tok[2],10):NaN;if(!(rph>=1&&rph<=60))rph=Math.max(1,Math.round(N/dayStart.length/24));
+  const maxSlots=dayLen.reduce((a,b)=>Math.max(a,b),0);
+  const per=24*rph,exp=[8760*rph,8784*rph];
+  checks.push(exp.includes(N)?{t:`${N.toLocaleString()} records = ${N===exp[0]?365:366} days × ${per} per day.`}:{w:1,t:`${N.toLocaleString()} records. A full year would be ${exp[0].toLocaleString()} (or ${exp[1].toLocaleString()} in a leap year).`});
+  if(rph>1)checks.push({t:`${rph} records per hour (sub-hourly file).`});
+  const oddDays=dayLen.filter(l=>l!==per).length;
+  if(oddDays)checks.push({w:1,t:`${oddDays} day${oddDays>1?"s":""} with a record count other than ${per}.`});
+  if(outOfOrder)checks.push({w:1,t:"Dates are out of order in some places."});
+  if(skipped)checks.push({w:1,t:`${skipped} line${skipped>1?"s":""} after the header could not be read as records (first at line ${firstSkip}) and ${skipped>1?"were":"was"} skipped.`});
+  if(shortR)checks.push({w:1,t:`${shortR} record${shortR>1?"s":""} had fewer than 35 values; the rest were treated as missing.`});
+  if(longR)checks.push({w:1,t:`${longR} record${longR>1?"s":""} had more than 35 values; extras are ignored.`});
+  const keyMiss=[6,7,8,9,13,14,15,20,21].filter(k=>stats[k].miss>0);
+  checks.push(keyMiss.length?{w:1,t:`Missing values in key fields: ${keyMiss.map(k=>`${FIELDS[k].n} (${stats[k].miss})`).join(", ")}.`}:{t:"No missing values in temperature, humidity, pressure, solar or wind fields."});
+  let rhHi=0,negRad=0;for(let r=0;r<N;r++){if(data[8][r]>100)rhHi++;for(const k of [13,14,15])if(data[k][r]<0)negRad++}
+  if(rhHi)checks.push({w:1,t:`${rhHi} hours with relative humidity above 100%.`});
+  if(negRad)checks.push({w:1,t:`${negRad} negative solar radiation values.`});
+  const yrs=[...new Set(Array.from(data[0]).filter(isFinite))];
+  if(yrs.length>1)checks.push({t:`Months drawn from ${yrs.length} different years, typical of a TMY style file.`});
+  return {name,size:text.length,headers,rows,rowLine,data,stats,N,firstDataLine,rph,dayStart,dayLen,dayMonth,dayDay,dayOf,slot,maxSlots,checks,yrs,totalLines:lines.length-(lines[lines.length-1]===""?1:0)};
+}
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function fmt(v,dp){if(v==null||isNaN(v))return "n/a";return Number(v).toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp})}
+function hex2rgb(h){h=h.replace("#","");return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]}
+function rampFn(stops){const c=stops.map(hex2rgb);return t=>{t=Math.max(0,Math.min(1,t));const x=t*(c.length-1),i=Math.min(c.length-2,Math.floor(x)),f=x-i;return c[i].map((v,k)=>Math.round(v+(c[i+1][k]-v)*f))}}
+function rampFor(k){return k===6||k===7?RAMP_TEMP:RAMP_SEQ}
+function niceTicks(min,max,n){if(!isFinite(min)||!isFinite(max)){min=0;max=1}if(max===min)max=min+1;const st0=(max-min)/n,mag=Math.pow(10,Math.floor(Math.log10(st0))),e=st0/mag;const st=(e>=7.5?10:e>=3.5?5:e>=1.5?2:1)*mag;const lo=Math.floor(min/st)*st,hi=Math.ceil(max/st)*st,t=[];for(let v=lo;v<=hi+st*1e-6;v+=st)t.push(+v.toFixed(10));return{lo,hi,t}}
+function setup(cv,h){const w=Math.max(160,cv.parentElement.clientWidth);const dpr=window.devicePixelRatio||1;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);cv.style.height=h+"px";const ctx=cv.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);return{ctx,w,h}}
+function axisText(ctx){ctx.fillStyle=css("--muted");ctx.font="11px "+css("--body")}
+function noData(ctx,w,h,msg){axisText(ctx);ctx.textAlign="center";ctx.fillText(msg||"No valid values for this field in the file.",w/2,h/2)}
+function frame(ctx,L,T,pw,ph,ticks,y){axisText(ctx);ctx.textAlign="right";ctx.strokeStyle=css("--line");ctx.lineWidth=1;ticks.forEach(v=>{const yy=Math.round(y(v))+.5;ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(L+pw,yy);ctx.stroke();ctx.fillText(v.toLocaleString(),L-6,yy+4)})}
+function store(k,v){try{v===undefined?localStorage.getItem(k):localStorage.setItem(k,v)}catch(e){}}
+function recall(k){try{return localStorage.getItem(k)}catch(e){return null}}
+
+/* ---------- state ---------- */
+let PANES=[],nextId=1,sel=6,selMonth=6,sharedScale=true;
+const loaded=()=>PANES.filter(p=>p.E);
+function newPane(){return {id:nextId++,E:null,name:"",sample:false,err:"",anat:0}}
+function paneIdx(p){return PANES.indexOf(p)}
+function loadInto(p,text,name,sampleKey){
+  try{p.E=parseEPW(text,name);p.err="";p.name=name;p.sample=!!sampleKey;p.sampleKey=sampleKey||"";p.anat=0}
+  catch(e){p.err=e.message}
+  renderAll();
+}
+function readFileInto(p,file){
+  if(!file)return;
+  if(file.size>40e6){p.err="That file is over 40 MB, which is too large for an EPW. Check that it is the right file.";renderBar();return}
+  const fr=new FileReader();
+  fr.onload=()=>loadInto(p,fr.result,file.name,null);
+  fr.onerror=()=>{p.err="Could not read that file.";renderBar()};
+  fr.readAsText(file,"ISO-8859-1");
+}
+function addPane(){if(PANES.length>=MAXP)return null;const p=newPane();PANES.push(p);renderAll();return p}
+function removePane(p){PANES=PANES.filter(x=>x!==p);if(!PANES.length)PANES.push(newPane());renderAll()}
+
+/* ---------- pane bar ---------- */
+function sampleOptions(cur){return `<option value="">Load a sample…</option>`+Object.entries(SAMPLES).map(([k,s])=>`<option value="${k}"${k===cur?" selected":""}>${esc(s.label)}</option>`).join("")}
+function renderBar(){
+  const bar=$("#panebar");bar.style.setProperty("--n",PANES.length);
+  bar.innerHTML=PANES.map((p,i)=>{
+    const E=p.E,loc=E?locOf(E):null;
+    const title=E?esc(loc.city||p.name):"Empty pane";
+    const sub=E?(p.sample?`<small class="sample">Synthetic sample, not real weather</small>`:`<small title="${esc(p.name)}">${esc(p.name)}</small>`):`<small>Open a file, drop one here, or load a sample</small>`;
+    return `<div class="phead" data-id="${p.id}" style="--pc:${PCOL[i]}">
+      <span class="pletter" aria-hidden="true">${LETTERS[i]}</span>
+      <div class="pname"><b>${title}</b>${sub}</div>
+      <div class="pacts">
+        <button type="button" class="btn sm${E?"":" primary"}" data-act="open">Open EPW</button>
+        <select data-act="sample" aria-label="Load a sample into pane ${LETTERS[i]}">${sampleOptions(p.sample?p.sampleKey:"")}</select>
+        ${PANES.length>1||E?`<button type="button" class="xbtn" data-act="close" aria-label="Close pane ${LETTERS[i]}" title="Close">×</button>`:""}
+      </div>
+      ${p.err?`<span class="err" role="alert">${esc(p.err)}</span>`:""}
+    </div>`}).join("")+
+    `<button type="button" class="addbtn" id="addPane" ${PANES.length>=MAXP?"disabled":""} aria-label="Add a pane to compare another file" title="${PANES.length>=MAXP?"Up to 4 files at once":"Compare another file"}">+<small>${PANES.length>=MAXP?"max 4":"compare"}</small></button>`;
+  bar.querySelectorAll(".phead").forEach(el=>{
+    const p=PANES.find(x=>x.id===+el.dataset.id);
+    el.querySelector('[data-act="open"]').onclick=()=>pickFile(p);
+    el.querySelector('[data-act="sample"]').onchange=e=>{const k=e.target.value;if(k)loadInto(p,makeSample(k),k+"_sample.epw",k)};
+    const x=el.querySelector('[data-act="close"]');if(x)x.onclick=()=>removePane(p);
+    el.addEventListener("dragover",e=>{e.preventDefault();e.stopPropagation();el.classList.add("dragover")});
+    el.addEventListener("dragleave",()=>el.classList.remove("dragover"));
+    el.addEventListener("drop",e=>{e.preventDefault();e.stopPropagation();el.classList.remove("dragover");dragN=0;$("#drop").hidden=true;readFileInto(p,e.dataTransfer.files[0])});
+  });
+  $("#addPane").onclick=()=>{const p=addPane();if(p)pickFile(p,true)};
+}
+let pickTarget=null;
+function pickFile(p,fresh){pickTarget={p,fresh};const fi=$("#fileIn");fi.value="";fi.click()}
+$("#fileIn").onchange=e=>{const files=[...e.target.files];if(!pickTarget||!files.length)return;loadFiles(files,pickTarget.p);pickTarget=null};
+function loadFiles(files,first){
+  files=files.slice(0,MAXP);
+  let targets=[];
+  if(first)targets.push(first);
+  for(const p of PANES)if(!p.E&&!targets.includes(p))targets.push(p);
+  while(targets.length<files.length&&PANES.length<MAXP){const p=newPane();PANES.push(p);targets.push(p)}
+  files.forEach((f,i)=>{if(targets[i])readFileInto(targets[i],f)});
+  if(files.length>targets.length)alertBar(`Only ${MAXP} files can be open at once; extra files were ignored.`);
+  renderBar();
+}
+function alertBar(msg){const p=PANES[PANES.length-1];p.err=msg;renderBar()}
+
+/* ---------- section helpers ---------- */
+function locOf(E){const t=E.headers[0].tok;return{city:(t[1]||"").trim(),state:(t[2]||"").trim(),country:(t[3]||"").trim(),src:(t[4]||"").trim(),wmo:(t[5]||"").trim(),lat:+t[6],lon:+t[7],tz:+t[8],elev:+t[9]}}
+function ptag(p){if(PANES.length<2)return "";const i=paneIdx(p);return `<div class="ptag" data-l="${LETTERS[i]}" style="--pc:${PCOL[i]}"><span>${esc(p.E?locOf(p.E).city||p.name:"Empty pane")}</span></div>`}
+function fillCols(id,fn){
+  const c=document.getElementById(id);c.style.setProperty("--n",PANES.length);
+  c.innerHTML=PANES.map(p=>`<div class="cell" data-id="${p.id}">${ptag(p)}${p.E?fn.html(p):`<div class="emptycell">No file in this pane yet.</div>`}</div>`).join("");
+  if(fn.bind)c.querySelectorAll(".cell").forEach(cell=>{const p=PANES.find(x=>x.id===+cell.dataset.id);if(p.E)fn.bind(p,cell)});
+}
+
+/* ---------- summary ---------- */
+const S_SUMMARY={html:p=>{
+  const E=p.E,l=locOf(E),s=E.stats;
+  let ghi=0;const g=E.data[13];for(let r=0;r<E.N;r++)if(!isNaN(g[r]))ghi+=g[r];
+  const items=[["Station",esc(l.city||"n/a")+` <small>${esc([l.state,l.country,l.wmo?"WMO "+l.wmo:""].filter(Boolean).join(" · "))}</small>`,"wide"],["Lat / Lon",`${fmt(l.lat,2)}°, ${fmt(l.lon,2)}°`],["Elevation",`${fmt(l.elev,0)} <small>m</small>`],["Time zone",`GMT ${l.tz>=0?"+":""}${isFinite(l.tz)?l.tz:"?"}`],["Records",`${E.N.toLocaleString()} <small>${E.dayStart.length} days${E.rph>1?" · "+E.rph+"/hr":""}</small>`],["Source years",!E.yrs.length?"n/a":E.yrs.length>1?`${E.yrs.length} <small>${Math.min(...E.yrs)} to ${Math.max(...E.yrs)}</small>`:String(E.yrs[0])],["Mean dry bulb",`${fmt(s[6].mean,1)} <small>°C</small>`],["Mean RH",`${fmt(s[8].mean,0)} <small>%</small>`],["Annual GHI",`${fmt(ghi/1000/E.rph,0)} <small>kWh/m²</small>`]];
+  return `<div class="summary">${items.map(([k,v,c])=>`<div${c?` class="${c}"`:""}><div class="k">${k}</div><div class="v num">${v}</div></div>`).join("")}</div>
+  <div class="checks">${E.checks.map(c=>`<span class="chk ${c.w?"warn":"ok"}"><b>${c.w?"NOTE":"OK"}</b>${esc(c.t)}</span>`).join("")}</div>`}};
+
+/* ---------- anatomy ---------- */
+function headerLabel(key,k,t){
+  if(k===0)return "keyword";
+  if(key==="LOCATION")return ["","city","state / province","country","data source","WMO station","latitude","longitude","time zone","elevation m"][k]||"";
+  if(key==="HOLIDAYS/DAYLIGHT SAVINGS")return ["","leap year observed","DST start","DST end","holiday count"][k]||"";
+  if(key==="DATA PERIODS")return ["","number of periods","records per hour","period name","start weekday","start date","end date"][k]||"";
+  if(key==="TYPICAL/EXTREME PERIODS"){if(k===1)return "number of periods";return ["name","type","start","end"][(k-2)%4]}
+  if(key==="GROUND TEMPERATURES"){if(k===1)return "number of depths";const q=(k-2)%16;return q===0?"depth m":q===1?"conductivity":q===2?"density":q===3?"specific heat":MONTHS[q-4]}
+  if(key==="DESIGN CONDITIONS"){if(k===1)return "number of sets";if(k===2)return "source";if(/^[A-Za-z]/.test((t[k]||"").trim()))return "group label"}
+  return "";
+}
+function inspectHTML(p){
+  const E=p.E;
+  if(p.anat==="data"){
+    const row=E.rows[0];
+    return `<span class="eyebrow">Line ${E.firstDataLine}, the first record</span><h3>Hourly data block</h3><p class="what">Each data line holds exactly 35 comma separated values in a fixed order. There is no column heading row; position alone tells you what a value is. Column numbers start at 1, as in the EnergyPlus documentation.</p><div class="raw">${esc(row.join(","))}</div><div class="toks">`+row.slice(0,35).map((v,k)=>`<span class="tok"><i>${k+1}</i><b>${esc(v===""?"(empty)":v)}</b><span>${esc(FIELDS[k].n)}</span></span>`).join("")+`</div>`;
+  }
+  const h=E.headers[p.anat]||E.headers[0];
+  return `<span class="eyebrow">Line ${h.line}</span><h3>${esc(h.key)}</h3><p class="what">${esc(HEADER_INFO[h.key])}</p><div class="raw">${esc(h.raw)}</div><div class="toks">`+
+    h.tok.map((v,k)=>{const lb=headerLabel(h.key,k,h.tok);return `<span class="tok${k===0?" kwd":""}"><i>${k}</i><b>${esc(v===""?"(empty)":v)}</b>${lb?`<span>${esc(lb)}</span>`:""}</span>`}).join("")+`</div>`;
+}
+const S_ANATOMY={
+ html:p=>{const E=p.E;const last=E.rowLine[E.N-1];
+  return `<div class="anatomy"><div class="stack">`+E.headers.map((h,i)=>`<button class="lineBtn" type="button" data-i="${i}" aria-pressed="${p.anat===i}"><span class="ln">L${h.line}</span><span class="kw">${esc(h.key)}</span><span class="ct">${h.tok.length} values</span></button>`).join("")+
+  `<button class="lineBtn data" type="button" data-i="data" aria-pressed="${p.anat==="data"}"><span class="ln">L${E.firstDataLine}<br>to<br>L${last}</span><span class="kw">HOURLY DATA<br><span style="font-weight:400;color:var(--muted)">${E.N.toLocaleString()} lines</span></span><span class="ct">35 values each</span></button></div><div class="panel inspect">${inspectHTML(p)}</div></div>`},
+ bind:(p,cell)=>cell.querySelectorAll(".lineBtn").forEach(b=>b.onclick=()=>{p.anat=b.dataset.i==="data"?"data":+b.dataset.i;cell.querySelectorAll(".lineBtn").forEach(x=>x.setAttribute("aria-pressed",x===b));cell.querySelector(".inspect").innerHTML=inspectHTML(p)})
+};
+
+/* ---------- decoded header ---------- */
+function groundSVG(depths){
+  if(!depths.length)return "<p>No ground temperatures listed.</p>";
+  const all=depths.flatMap(d=>d.v).filter(isFinite);if(!all.length)return "<p>Ground temperature values are blank.</p>";
+  const {lo,hi,t}=niceTicks(Math.min(...all),Math.max(...all),4);
+  const W=340,H=170,l=34,r=56,tp=10,b=22,pw=W-l-r,ph=H-tp-b,x=i=>l+pw*i/11,y=v=>tp+ph*(1-(v-lo)/(hi-lo));
+  const cols=["var(--accent)","var(--muted)","var(--warn)","var(--ink)"];
+  let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W*1.4}px;margin-top:10px" role="img" aria-label="Monthly ground temperature by depth">`;
+  t.forEach(v=>{s+=`<line x1="${l}" x2="${l+pw}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${l-6}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${v}°</text>`});
+  MONTHS.forEach((m,i)=>{if(i%2===0)s+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--muted)">${m}</text>`});
+  depths.forEach((d,i)=>{const c=cols[i%cols.length];const pts=d.v.map((v,j)=>isFinite(v)?x(j)+","+y(v):null).filter(Boolean);s+=`<polyline fill="none" stroke="${c}" stroke-width="2" points="${pts.join(" ")}"/>${isFinite(d.v[11])?`<text x="${l+pw+6}" y="${y(d.v[11])+3}" font-size="10" fill="${c}">${esc(d.d)} m</text>`:""}`});
+  return s+"</svg>";
+}
+const S_HEADER={html:p=>{
+  const E=p.E,H={};E.headers.forEach(h=>H[h.key]=h.tok);const cards=[],l=locOf(E);
+  cards.push(`<div class="panel"><span class="eyebrow">Line 1</span><h3>Location</h3><dl class="kv"><dt>City</dt><dd>${esc(l.city)}</dd><dt>State / region</dt><dd>${esc(l.state||"n/a")}</dd><dt>Country</dt><dd>${esc(l.country)}</dd><dt>Data source</dt><dd>${esc(l.src)}</dd><dt>WMO station</dt><dd class="mono">${esc(l.wmo)}</dd><dt>Latitude</dt><dd>${fmt(Math.abs(l.lat),3)}° ${l.lat>=0?"N":"S"}</dd><dt>Longitude</dt><dd>${fmt(Math.abs(l.lon),3)}° ${l.lon>=0?"E":"W"}</dd><dt>Time zone</dt><dd>GMT ${l.tz>=0?"+":""}${l.tz} h</dd><dt>Elevation</dt><dd>${fmt(l.elev,1)} m</dd></dl></div>`);
+  if(H["TYPICAL/EXTREME PERIODS"]){const t=H["TYPICAL/EXTREME PERIODS"],n=+t[1]||0;let rows="";
+    for(let i=0;i<n;i++){const b=2+i*4;if(!t[b])break;const typ=(t[b+1]||"").trim();rows+=`<tr><td>${esc(t[b])}</td><td><span class="tag ${/extreme/i.test(typ)?"ext":"typ"}">${esc(typ)}</span></td><td class="mono num">${esc(t[b+2])} to ${esc(t[b+3])}</td></tr>`}
+    cards.push(`<div class="panel"><span class="eyebrow">Line 3</span><h3>Typical and extreme weeks</h3><div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>Period</th><th>Type</th><th>Dates</th></tr></thead><tbody>${rows||'<tr><td colspan="3">None listed</td></tr>'}</tbody></table></div></div>`)}
+  if(H["GROUND TEMPERATURES"]){const t=H["GROUND TEMPERATURES"],n=+t[1]||0,depths=[];
+    for(let i=0;i<n;i++){const b=2+i*16;if(t.length<b+16)break;depths.push({d:(t[b]||"").trim(),v:t.slice(b+4,b+16).map(x=>x.trim()===""?NaN:Number(x))})}
+    cards.push(`<div class="panel"><span class="eyebrow">Line 4</span><h3>Ground temperatures</h3><p class="lede" style="font-size:.86rem;margin-top:4px">Deeper soil swings less and lags the seasons.</p>${groundSVG(depths)}</div>`)}
+  if(H["DESIGN CONDITIONS"]){const t=H["DESIGN CONDITIONS"];const groups=t.filter((v,i)=>i>2&&/^[A-Za-z]/.test(v.trim()));
+    cards.push(`<div class="panel"><span class="eyebrow">Line 2</span><h3>Design conditions</h3><dl class="kv"><dt>Sets</dt><dd>${esc(t[1]||"0")}</dd><dt>Source</dt><dd>${esc(t[2]||"n/a")}</dd><dt>Values</dt><dd>${t.length-1}</dd><dt>Groups</dt><dd>${groups.map(esc).join(", ")||"n/a"}</dd></dl><p class="lede" style="font-size:.84rem;margin-top:10px">Values are positional, following the ASHRAE design table layout. Open the structure explorer below to see each value labeled.</p></div>`)}
+  const ho=H["HOLIDAYS/DAYLIGHT SAVINGS"],dp=H["DATA PERIODS"];const g=(a,i)=>a&&a[i]!==undefined?esc(String(a[i]).trim()):"n/a";
+  cards.push(`<div class="panel"><span class="eyebrow">Lines 5 and 8</span><h3>Calendar</h3><dl class="kv"><dt>Leap year observed</dt><dd>${g(ho,1)}</dd><dt>DST start / end</dt><dd>${g(ho,2)} / ${g(ho,3)}</dd><dt>Holidays</dt><dd>${g(ho,4)}</dd><dt>Data periods</dt><dd>${g(dp,1)}</dd><dt>Records per hour</dt><dd>${g(dp,2)}</dd><dt>Starts on</dt><dd>${g(dp,4)}</dd><dt>Date range</dt><dd class="mono">${g(dp,5)} to ${g(dp,6)}</dd></dl></div>`);
+  const c1=E.headers.find(h=>h.key==="COMMENTS 1"),c2=E.headers.find(h=>h.key==="COMMENTS 2");
+  cards.push(`<div class="panel"><span class="eyebrow">Lines 6 and 7</span><h3>Comments</h3><p style="margin-top:8px">${esc(c1?c1.raw.replace(/^COMMENTS 1,?/i,""):"(none)")}</p><p style="margin-top:8px;color:var(--muted)">${esc(c2?c2.raw.replace(/^COMMENTS 2,?/i,""):"")}</p></div>`);
+  return `<div class="hgrid">${cards.join("")}</div>`}};
+
+/* ---------- field table ---------- */
+function sparkSVG(m,col){const v=m.filter(isFinite);if(!v.length)return "";const mn=Math.min(...v),mx=Math.max(...v),W=80,H=20;const pts=m.map((a,i)=>isFinite(a)?`${(i/11*(W-4)+2).toFixed(1)},${(H-3-(mx===mn?.5:(a-mn)/(mx-mn))*(H-6)).toFixed(1)}`:null).filter(Boolean).join(" ");return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6"/></svg>`}
+function renderFields(){
+  const LP=PANES.map((p,i)=>({p,i})).filter(x=>x.p.E);
+  $("#fieldTable thead").innerHTML=`<tr><th>Col</th><th>Field</th><th>Units</th><th class="r">Missing code</th>${LP.map(({p,i})=>`<th class="pc" style="--pc:${PCOL[i]}">${LP.length>1?LETTERS[i]+" · ":""}Mean <span style="text-transform:none;letter-spacing:0">(min to max)</span></th><th class="pc" style="--pc:${PCOL[i]}">By month</th>`).join("")}</tr>`;
+  let html="",g=null;
+  FIELDS.forEach((f,k)=>{
+    if(f.g!==g){g=f.g;html+=`<tr class="grp"><td colspan="${4+LP.length*2}">${GROUPS[g]}</td></tr>`}
+    const num=f.kind==="num";
+    html+=`<tr class="f${k===sel?" sel":""}" data-k="${k}" tabindex="${num?0:-1}"><td class="idx">${k+1}</td><td><strong>${esc(f.n)}</strong>${f.rad?'<span class="badge">Radiance</span>':""}<div class="desc">${esc(f.d)}</div></td><td class="mono">${esc(f.u||"")}</td><td class="r mono">${f.miss!=null?f.miss:""}</td>`+
+      LP.map(({p,i})=>{const s=p.E.stats[k];if(!num)return "<td></td><td></td>";const pct=s.miss/p.E.N*100;
+        return `<td class="stat3">${fmt(s.mean,f.dp)}<small>${fmt(s.min,f.dp)} to ${fmt(s.max,f.dp)}${s.miss?` · <span class="${pct>5?"miss-hi":""}">${pct<.1?"<0.1":fmt(pct,1)}% missing</span>`:""}</small></td><td>${sparkSVG(s.monthly,PCOL[i])}</td>`}).join("")+`</tr>`;
+  });
+  const tb=$("#fieldTable tbody");tb.innerHTML=html;
+  tb.querySelectorAll("tr.f").forEach(tr=>{const k=+tr.dataset.k;if(FIELDS[k].kind!=="num"){tr.style.cursor="default";return}
+    const go=()=>{selectField(k);document.getElementById("s-explore").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"})};
+    tr.onclick=go;tr.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}});
+}
+
+/* ---------- explorer ---------- */
+function buildSelectors(){
+  let html="",g=null;
+  FIELDS.forEach((f,k)=>{if(f.kind!=="num")return;if(f.g!==g){if(g)html+="</optgroup>";g=f.g;html+=`<optgroup label="${GROUPS[g]}">`}html+=`<option value="${k}">${k+1}. ${esc(f.n)}</option>`});
+  $("#fieldSel").innerHTML=html+"</optgroup>";
+  $("#fieldSel").onchange=e=>selectField(+e.target.value);
+  const quick=[[6,"Dry bulb"],[8,"RH"],[13,"GHI"],[14,"DNI"],[15,"DHI"],[21,"Wind speed"],[22,"Sky cover"]];
+  $("#quickChips").innerHTML=quick.map(([k,l])=>`<button type="button" class="chip" data-k="${k}">${l}</button>`).join("");
+  $("#quickChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>selectField(+b.dataset.k));
+  $("#monthChips").innerHTML=MONTHS.map((m,i)=>`<button type="button" class="chip" data-m="${i}">${m}</button>`).join("");
+  $("#monthChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{selMonth=+b.dataset.m;syncChips();drawCharts()});
+  $("#sharedScale").onchange=e=>{sharedScale=e.target.checked;drawCharts()};
+  $("#recMonth").innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}">${m}</option>`).join("");$("#recMonth").value=6;
+  ["recMonth","recDay","recHour"].forEach(id=>$("#"+id).addEventListener("input",()=>fillCols("c-record",S_RECORD)));
+}
+function syncChips(){
+  $("#quickChips").querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.k===sel));
+  $("#monthChips").querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.m===selMonth));
+  $("#cmpDayLbl").textContent=`Average day in ${MONTHS[selMonth]}`;
+}
+function selectField(k){
+  sel=k;$("#fieldSel").value=k;syncChips();
+  document.querySelectorAll("#fieldTable tr.f").forEach(tr=>tr.classList.toggle("sel",+tr.dataset.k===k));
+  const f=FIELDS[k];
+  $("#exTitle").textContent=f.n;
+  $("#fieldNote").innerHTML=`<span class="unit">Column ${k+1} · ${esc(f.u||"no units")} · missing code ${f.miss}</span><p>${esc(f.d)}${f.rad?" Radiance sky generators take this value hour by hour, together with the sun position from the date, time and location.":""}</p>`;
+  drawCharts();
+}
+function ownRange(E,k){const s=E.stats[k];let lo=s.min,hi=s.max;if(FIELDS[k].g==="solar"||FIELDS[k].g==="illum")lo=Math.min(0,lo);if(!isFinite(lo)||!isFinite(hi)){lo=0;hi=1}if(hi===lo)hi=lo+1;return[lo,hi]}
+function rangeFor(E,k){const L=loaded();if(!sharedScale||L.length<2)return ownRange(E,k);let lo=Infinity,hi=-Infinity;L.forEach(p=>{if(isNaN(p.E.stats[k].mean))return;const r=ownRange(p.E,k);lo=Math.min(lo,r[0]);hi=Math.max(hi,r[1])});return isFinite(lo)?[lo,hi]:ownRange(E,k)}
+function monthTicks(ctx,E,L,pw,h,nd){axisText(ctx);ctx.textAlign="left";let last=-1;for(let d=0;d<nd;d++){const m=E.dayMonth[d];if(m!==last){last=m;if(pw>360||m%2===1)ctx.fillText(pw<200?MONTHS[m-1][0]:MONTHS[m-1]||"",L+pw*d/nd+2,h-6)}}}
+const S_EXPLORE={
+ html:p=>`<div class="panel chart heatwrap"><div class="cap"><h3>Every hour of the year</h3><p>Days across, hours down. Hover for values.</p></div><canvas class="c-heat"></canvas><div class="legend"><span class="lgMin num"></span><span class="bar lgBar"></span><span class="lgMax num"></span><span class="lgMiss"></span></div><div class="tip" hidden></div></div>
+  <div class="panel chart"><div class="cap"><h3>Monthly range</h3><p>Bar spans min to max; dot is the mean.</p></div><canvas class="c-monthly"></canvas></div>
+  <div class="panel chart"><div class="cap"><h3>Average day by month</h3><p class="c-avgcap"></p></div><canvas class="c-avgday"></canvas></div>
+  <div class="panel chart"><div class="cap"><h3>Daily envelope</h3><p>Band is each day's min to max; line is the daily mean.</p></div><canvas class="c-annual"></canvas></div>`
+};
+function drawHeat(p,cell){
+  const E=p.E,cv=cell.querySelector(".c-heat"),wrap=cell.querySelector(".heatwrap"),tip=cell.querySelector(".tip"),k=sel,a=E.data[k],nd=E.dayStart.length,S=E.maxSlots;
+  const H=Math.max(200,Math.min(300,wrap.clientWidth*.34));
+  const {ctx,w,h}=setup(cv,H);const L=40,Rr=6,T=6,B=22,pw=w-L-Rr,ph=h-T-B;
+  const f=FIELDS[k];
+  if(isNaN(E.stats[k].mean)){noData(ctx,w,h);return}
+  const [lo,hi]=rangeFor(E,k),ramp=rampFn(rampFor(k));
+  const off=document.createElement("canvas");off.width=nd;off.height=S;const oc=off.getContext("2d"),img=oc.createImageData(nd,S);
+  const lc=css("--line"),missRGB=/^#[0-9a-f]{6}$/i.test(lc)?hex2rgb(lc):[136,136,136];
+  for(let r=0;r<E.N;r++){const d=E.dayOf[r],sl=E.slot[r],q=(sl*nd+d)*4,v=a[r];const c=isNaN(v)?missRGB:ramp((v-lo)/(hi-lo));img.data[q]=c[0];img.data[q+1]=c[1];img.data[q+2]=c[2];img.data[q+3]=255}
+  oc.putImageData(img,0,0);ctx.imageSmoothingEnabled=false;ctx.drawImage(off,L,T,pw,ph);
+  axisText(ctx);ctx.textAlign="right";
+  [0,6,12,18,24].forEach(hh=>{const y=T+ph*hh/24;ctx.fillText(String(hh).padStart(2,"0")+":00",L-4,y+(hh===0?8:hh===24?0:4))});
+  ctx.strokeStyle=css("--bg");ctx.globalAlpha=.6;let last=-1;
+  for(let d=0;d<nd;d++){if(E.dayMonth[d]!==last){last=E.dayMonth[d];const x=L+pw*d/nd;ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+ph);ctx.stroke()}}
+  ctx.globalAlpha=1;monthTicks(ctx,E,L,pw,h,nd);
+  cell.querySelector(".lgMin").textContent=fmt(lo,f.dp);cell.querySelector(".lgMax").textContent=fmt(hi,f.dp)+" "+f.u;
+  cell.querySelector(".lgBar").style.background=`linear-gradient(90deg,${rampFor(k).join(",")})`;
+  cell.querySelector(".lgMiss").innerHTML=E.stats[k].miss?`<span style="display:inline-block;width:10px;height:10px;background:var(--line);border:1px solid var(--line-strong);vertical-align:-1px"></span> missing`:"";
+  cv.onmousemove=e=>{const rc=cv.getBoundingClientRect(),x=e.clientX-rc.left,y=e.clientY-rc.top;
+    if(x<L||x>=L+pw||y<T||y>=T+ph){tip.hidden=true;return}
+    const d=Math.floor((x-L)/pw*nd),sl=Math.floor((y-T)/ph*S);if(d>=nd||sl>=E.dayLen[d]){tip.hidden=true;return}
+    const r=E.dayStart[d]+sl,v=a[r],hr=E.data[3][r],mi=E.data[4][r];
+    const stamp=E.rph>1?`hour ${hr}, minute ${isNaN(mi)?"?":mi}`:`hour ${hr} (${String(hr-1).padStart(2,"0")}:00 to ${String(hr).padStart(2,"0")}:00)`;
+    tip.textContent=`${MONTHS[E.dayMonth[d]-1]} ${E.dayDay[d]}, ${stamp} · ${isNaN(v)?"missing":fmt(v,f.dp)+" "+f.u}`;
+    tip.hidden=false;const wr=wrap.getBoundingClientRect(),tw=tip.offsetWidth;let lx=e.clientX-wr.left+12;if(lx+tw>wr.width-8)lx=e.clientX-wr.left-tw-12;tip.style.left=Math.max(4,lx)+"px";tip.style.top=(e.clientY-wr.top+14)+"px"};
+  cv.onmouseleave=()=>tip.hidden=true;
+}
+function drawMonthly(p,cell){
+  const E=p.E,cv=cell.querySelector(".c-monthly"),k=sel,a=E.data[k],mo=E.data[1];const {ctx,w,h}=setup(cv,220);
+  if(isNaN(E.stats[k].mean))return noData(ctx,w,h);
+  const mn=new Array(12).fill(Infinity),mx=new Array(12).fill(-Infinity),mean=E.stats[k].monthly;
+  for(let r=0;r<E.N;r++){const v=a[r];if(isNaN(v))continue;const m=mo[r]-1;if(v<mn[m])mn[m]=v;if(v>mx[m])mx[m]=v}
+  const [lo0,hi0]=rangeFor(E,k);const {lo,hi,t}=niceTicks(lo0,hi0,4);
+  const L=50,Rr=6,T=10,B=22,pw=w-L-Rr,ph=h-T-B,y=v=>T+ph*(1-(v-lo)/(hi-lo)),bw=pw/12;
+  frame(ctx,L,T,pw,ph,t,y);
+  const acc=PCOL[paneIdx(p)],soft=css("--accent-soft");
+  for(let m=0;m<12;m++){const cx=L+bw*(m+.5);axisText(ctx);ctx.textAlign="center";ctx.fillText(pw<330?MONTHS[m][0]:MONTHS[m],cx,h-6);
+    if(!isFinite(mn[m]))continue;const bwid=Math.min(16,bw*.5);ctx.globalAlpha=.25;ctx.fillStyle=acc;ctx.fillRect(cx-bwid/2,y(mx[m]),bwid,Math.max(1,y(mn[m])-y(mx[m])));ctx.globalAlpha=1;
+    ctx.strokeStyle=acc;ctx.lineWidth=1;ctx.strokeRect(cx-bwid/2+.5,y(mx[m])+.5,bwid-1,Math.max(1,y(mn[m])-y(mx[m])-1));
+    ctx.fillStyle=acc;ctx.beginPath();ctx.arc(cx,y(mean[m]),3.5,0,7);ctx.fill()}
+}
+function avgDayOf(E,k){
+  const a=E.data[k],mo=E.data[1],hc=E.data[3];
+  const sums=Array.from({length:12},()=>new Float64Array(24)),cnt=Array.from({length:12},()=>new Float64Array(24));
+  for(let r=0;r<E.N;r++){const v=a[r];if(isNaN(v))continue;const m=mo[r]-1,hr=Math.min(23,Math.max(0,(hc[r]|0)-1));sums[m][hr]+=v;cnt[m][hr]++}
+  return sums.map((s,m)=>Array.from(s,(v,hr)=>cnt[m][hr]?v/cnt[m][hr]:NaN));
+}
+function drawLines(ctx,arr,x,y,col,lw){ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();let st=false;arr.forEach((v,i)=>{if(!isFinite(v)){st=false;return}st?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v));st=true});ctx.stroke()}
+function drawAvgDay(p,cell){
+  const E=p.E,cv=cell.querySelector(".c-avgday"),k=sel;const {ctx,w,h}=setup(cv,200);
+  cell.querySelector(".c-avgcap").textContent=`${MONTHS[selMonth]} highlighted; other months in grey.`;
+  const avg=avgDayOf(E,k),vals=avg.flat().filter(isFinite);if(!vals.length)return noData(ctx,w,h);
+  let [lo0,hi0]=sharedScale&&loaded().length>1?rangeFor(E,k):[Math.min(...vals),Math.max(...vals)];
+  if(FIELDS[k].g==="solar"||FIELDS[k].g==="illum")lo0=Math.min(0,lo0);
+  const {lo,hi,t}=niceTicks(lo0,hi0,4);
+  const L=50,Rr=6,T=10,B=22,pw=w-L-Rr,ph=h-T-B,x=hr=>L+pw*(hr+.5)/24,y=v=>T+ph*(1-(v-lo)/(hi-lo));
+  frame(ctx,L,T,pw,ph,t,y);axisText(ctx);ctx.textAlign="center";[0,6,12,18,24].forEach(hh=>ctx.fillText(String(hh).padStart(2,"0")+(pw<260?"":":00"),L+pw*hh/24,h-6));
+  avg.forEach((arr,m)=>{if(m!==selMonth)drawLines(ctx,arr,x,y,css("--line-strong"),1)});
+  const col=PCOL[paneIdx(p)];drawLines(ctx,avg[selMonth],x,y,col,2.5);
+  const A=avg[selMonth],pk=A.reduce((b,v,i)=>isFinite(v)&&(b<0||v>A[b])?i:b,-1);
+  if(pk>=0){ctx.fillStyle=col;ctx.beginPath();ctx.arc(x(pk),y(A[pk]),3.5,0,7);ctx.fill();ctx.font="600 11px "+css("--body");ctx.textAlign=pk>14?"right":"left";ctx.fillText(`peak ${fmt(A[pk],FIELDS[k].dp)}`,x(pk)+(pk>14?-7:7),Math.max(T+10,y(A[pk])-6))}
+  else{axisText(ctx);ctx.textAlign="center";ctx.fillText(`No ${MONTHS[selMonth]} data in this file.`,L+pw/2,T+ph/2)}
+}
+function drawAnnual(p,cell){
+  const E=p.E,cv=cell.querySelector(".c-annual"),k=sel,a=E.data[k],nd=E.dayStart.length;const {ctx,w,h}=setup(cv,200);
+  if(isNaN(E.stats[k].mean))return noData(ctx,w,h);
+  const dmn=new Float64Array(nd).fill(NaN),dmx=new Float64Array(nd).fill(NaN),dm=new Float64Array(nd).fill(NaN);
+  for(let d=0;d<nd;d++){let s=0,n=0,mn=Infinity,mx=-Infinity;const st=E.dayStart[d];for(let j=0;j<E.dayLen[d];j++){const v=a[st+j];if(isNaN(v))continue;s+=v;n++;if(v<mn)mn=v;if(v>mx)mx=v}if(n){dmn[d]=mn;dmx[d]=mx;dm[d]=s/n}}
+  const [lo0,hi0]=rangeFor(E,k);const {lo,hi,t}=niceTicks(lo0,hi0,4);
+  const L=50,Rr=6,T=10,B=22,pw=w-L-Rr,ph=h-T-B,x=d=>L+pw*(d+.5)/nd,y=v=>T+ph*(1-(v-lo)/(hi-lo));
+  frame(ctx,L,T,pw,ph,t,y);monthTicks(ctx,E,L,pw,h,nd);
+  const col=PCOL[paneIdx(p)];ctx.fillStyle=col;ctx.globalAlpha=.22;let seg=[];
+  const flush=()=>{if(seg.length){ctx.beginPath();seg.forEach((d,i)=>i?ctx.lineTo(x(d),y(dmx[d])):ctx.moveTo(x(d),y(dmx[d])));for(let i=seg.length-1;i>=0;i--)ctx.lineTo(x(seg[i]),y(dmn[seg[i]]));ctx.closePath();ctx.fill()}seg=[]};
+  for(let d=0;d<nd;d++){if(isNaN(dmx[d]))flush();else seg.push(d)}flush();ctx.globalAlpha=1;
+  drawLines(ctx,Array.from(dm),x,y,col,1.5);
+}
+function drawCompare(){
+  const L=loaded(),blk=$("#cmpBlock");
+  if(L.length<2){blk.hidden=true;return}
+  blk.hidden=false;const k=sel,f=FIELDS[k];
+  $("#cmpLegend").innerHTML=L.map(p=>{const i=paneIdx(p);return `<span style="--pc:${PCOL[i]}"><i></i>${LETTERS[i]} · ${esc(locOf(p.E).city||p.name)}</span>`}).join("");
+  {const cv=$("#cmpMonthly");const {ctx,w,h}=setup(cv,220);
+   const series=L.map(p=>p.E.stats[k].monthly),vals=series.flat().filter(isFinite);if(!vals.length)noData(ctx,w,h);else{
+   let lo0=Math.min(...vals);if(f.g==="solar"||f.g==="illum")lo0=Math.min(0,lo0);const {lo,hi,t}=niceTicks(lo0,Math.max(...vals),4);
+   const Lm=50,T=10,B=22,pw=w-Lm-6,ph=h-T-B,x=m=>Lm+pw*(m+.5)/12,y=v=>T+ph*(1-(v-lo)/(hi-lo));
+   frame(ctx,Lm,T,pw,ph,t,y);axisText(ctx);ctx.textAlign="center";MONTHS.forEach((m,i)=>ctx.fillText(pw<330?m[0]:m,x(i),h-6));
+   L.forEach((p,j)=>{const c=PCOL[paneIdx(p)];drawLines(ctx,series[j],x,y,c,2.2);ctx.fillStyle=c;series[j].forEach((v,i)=>{if(isFinite(v)){ctx.beginPath();ctx.arc(x(i),y(v),2.6,0,7);ctx.fill()}})})}}
+  {const cv=$("#cmpDay");const {ctx,w,h}=setup(cv,220);
+   const series=L.map(p=>avgDayOf(p.E,k)[selMonth]),vals=series.flat().filter(isFinite);if(!vals.length)noData(ctx,w,h,`No ${MONTHS[selMonth]} data.`);else{
+   let lo0=Math.min(...vals);if(f.g==="solar"||f.g==="illum")lo0=Math.min(0,lo0);const {lo,hi,t}=niceTicks(lo0,Math.max(...vals),4);
+   const Lm=50,T=10,B=22,pw=w-Lm-6,ph=h-T-B,x=hr=>Lm+pw*(hr+.5)/24,y=v=>T+ph*(1-(v-lo)/(hi-lo));
+   frame(ctx,Lm,T,pw,ph,t,y);axisText(ctx);ctx.textAlign="center";[0,6,12,18,24].forEach(hh=>ctx.fillText(String(hh).padStart(2,"0")+":00",Lm+pw*hh/24,h-6));
+   L.forEach((p,j)=>drawLines(ctx,series[j],x,y,PCOL[paneIdx(p)],2.2))}}
+}
+function drawWind(p,cell){
+  const E=p.E,cv=cell.querySelector(".c-rose"),leg=cell.querySelector(".wlegend"),wd=E.data[20],ws=E.data[21];
+  const size=Math.min(380,cv.parentElement.clientWidth);const {ctx,w,h}=setup(cv,size);
+  const bins=[[.5,2],[2,4],[4,6],[6,8],[8,Infinity]],sec=Array.from({length:16},()=>new Array(bins.length).fill(0));let calm=0,tot=0;
+  for(let r=0;r<E.N;r++){const d=wd[r],s=ws[r];if(isNaN(d)||isNaN(s))continue;tot++;if(s<.5){calm++;continue}const i=Math.round(((d%360)+360)%360/22.5)%16;const b=bins.findIndex(([a,c])=>s>=a&&s<c);sec[i][b]++}
+  if(!tot){noData(ctx,w,h,"No wind data in this file.");leg.innerHTML="";return}
+  const pct=sec.map(r=>r.map(v=>v/tot*100)),mx=Math.max(...pct.map(r=>r.reduce((a,b)=>a+b,0)),1);
+  const {hi,t}=niceTicks(0,mx,3);const cx=w/2,cy=h/2,R=Math.min(w,h)/2-24;
+  ctx.strokeStyle=css("--line");axisText(ctx);ctx.textAlign="left";
+  t.forEach(v=>{if(!v)return;ctx.beginPath();ctx.arc(cx,cy,R*v/hi,0,7);ctx.stroke();ctx.fillText(v+"%",cx+3,cy-R*v/hi-3)});
+  ["N","NE","E","SE","S","SW","W","NW"].forEach((n,i)=>{const a=i*Math.PI/4-Math.PI/2;ctx.textAlign="center";ctx.fillStyle=css("--ink");ctx.font="600 12px "+css("--body");ctx.fillText(n,cx+Math.cos(a)*(R+13),cy+Math.sin(a)*(R+13)+4);ctx.strokeStyle=css("--line");ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);ctx.stroke()});
+  const half=Math.PI/16*.86;
+  sec.forEach((row,i)=>{const a=i*Math.PI/8-Math.PI/2;let r0=0;row.forEach((v,b)=>{const q=v/tot*100;if(!q)return;const r1=r0+q;ctx.fillStyle=WIND_COLS[b];ctx.beginPath();ctx.arc(cx,cy,R*r1/hi,a-half,a+half);ctx.arc(cx,cy,R*r0/hi,a+half,a-half,true);ctx.closePath();ctx.fill();r0=r1})});
+  const top=pct.map((r,i)=>[r.reduce((a,b)=>a+b,0),i]).sort((a,b)=>b[0]-a[0])[0];
+  const dirs=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  leg.innerHTML=`<strong>Speed (m/s)</strong>`+bins.map(([a,c],b)=>`<div><span class="sw" style="background:${WIND_COLS[b]}"></span>${c===Infinity?a+" and above":a+" to "+c}</div>`).join("")+`<p style="margin-top:8px;color:var(--muted)">Calm: ${fmt(calm/tot*100,1)}% of hours.<br>Most frequent: ${dirs[top[1]]} (${fmt(top[0],1)}%).</p>`;
+}
+const S_WIND={html:()=>`<div class="panel windgrid"><div class="chart"><canvas class="c-rose"></canvas></div><div class="wlegend"></div></div>`};
+function drawCharts(){
+  drawCompare();
+  document.querySelectorAll("#c-explore .cell").forEach(cell=>{const p=PANES.find(x=>x.id===+cell.dataset.id);if(p&&p.E){drawHeat(p,cell);drawMonthly(p,cell);drawAvgDay(p,cell);drawAnnual(p,cell)}});
+}
+function drawWinds(){document.querySelectorAll("#c-wind .cell").forEach(cell=>{const p=PANES.find(x=>x.id===+cell.dataset.id);if(p&&p.E)drawWind(p,cell)})}
+
+/* ---------- record ---------- */
+const S_RECORD={html:p=>{
+  const E=p.E,m=+$("#recMonth").value,d=+$("#recDay").value,hr=+$("#recHour").value;
+  let idx=-1;for(let r=0;r<E.N;r++)if(E.data[1][r]===m&&E.data[2][r]===d&&E.data[3][r]===hr){idx=r;break}
+  if(idx<0)return `<div class="emptycell">No record for ${MONTHS[m-1]} ${d}, hour ${hr} in this file.</div>`;
+  const row=E.rows[idx];
+  return `<span class="mono" style="font-size:.78rem;color:var(--muted)">File line ${E.rowLine[idx]} · record ${idx+1} of ${E.N}</span><div class="raw" style="margin:0">${esc(row.join(","))}</div><div class="cells">`+
+   row.slice(0,35).map((v,k)=>{const f=FIELDS[k];const miss=f.kind==="num"&&isNaN(E.data[k][idx]);
+    return `<div class="rc${miss?" missing":""}${f.rad?" rad":""}"><div class="h"><span>${esc(f.n)}</span><i>${k+1}</i></div><div class="val">${k===5?`<span style="font-size:.72rem">${esc(v)}</span>`:esc(v)}${f.u&&!miss?`<small>${esc(f.u)}</small>`:""}${miss?"<small>missing</small>":""}</div></div>`}).join("")+`</div>`}};
+
+/* ---------- structure tree ---------- */
+const DC_LABELS={
+ Heating:["coldestMonth","DB996","DB990","DP996","HR_DP996","DB_DP996","DP990","HR_DP990","DB_DP990","WS004c","DB_WS004c","WS010c","DB_WS010c","WS_DB996","WD_DB996"],
+ Cooling:["hottestMonth","DBR","DB004","WB_DB004","DB010","WB_DB010","DB020","WB_DB020","WB004","DB_WB004","WB010","DB_WB010","WB020","DB_WB020","WS_DB004","WD_DB004","DP004","HR_DP004","DB_DP004","DP010","HR_DP010","DB_DP010","DP020","HR_DP020","DB_DP020","EN004","DB_EN004","EN010","DB_EN010","EN020","DB_EN020","hrs_8to4_DB12.8to20.6"],
+ Extremes:["WS010","WS025","WS050","WBmax","DBmin_mean","DBmax_mean","DBmin_stddev","DBmax_stddev","DBmin05years","DBmax05years","DBmin10years","DBmax10years","DBmin20years","DBmax20years","DBmin50years","DBmax50years"]
+};
+const DC_HINT={DB:"dry bulb °C",DP:"dew point °C",WB:"wet bulb °C",HR:"humidity ratio g/kg",WS:"wind speed m/s",WD:"wind direction °",EN:"enthalpy kJ/kg"};
+function dcHint(lbl){
+  if(lbl==="coldestMonth")return "Month number with the lowest average temperature.";
+  if(lbl==="hottestMonth")return "Month number with the highest average temperature.";
+  if(lbl==="DBR")return "Mean daily dry bulb temperature range, °C.";
+  if(/^hrs_/.test(lbl))return "Number of hours between 8 am and 4 pm with dry bulb between 12.8 and 20.6 °C.";
+  if(/years$/.test(lbl))return `Extreme ${/min/.test(lbl)?"minimum":"maximum"} dry bulb with a ${parseInt(lbl.match(/(\d+)years/)[1],10)} year return period, °C.`;
+  if(/_mean$|_stddev$/.test(lbl))return `${/mean/.test(lbl)?"Mean":"Standard deviation"} of annual extreme ${/min/.test(lbl)?"minimum":"maximum"} dry bulb, °C.`;
+  const parts=lbl.split("_").map(q0=>{const q=q0.match(/^([A-Z]+)(min|max)?(\d{3})?/);if(!q)return q0;let s=DC_HINT[q[1]]||q[1];if(q[2])s=(q[2]==="min"?"minimum ":"maximum ")+s;if(q[3])s+=` at ${q[3]/10}% annual cumulative frequency`;return s});
+  const out=parts.length>1?`${parts[0]}, mean coincident with ${parts.slice(1).join(", ")}.`:parts[0]+".";return out.charAt(0).toUpperCase()+out.slice(1);
+}
+const camel=s=>s.toLowerCase().replace(/[^a-z0-9]+(.)/g,(_,c)=>c.toUpperCase()).replace(/[^a-zA-Z0-9]/g,"");
+FIELDS.forEach(f=>f.key=camel(f.n));
+const val=s=>{if(s===undefined)return null;const t=String(s).trim();if(t==="")return "";return /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(t)?Number(t):t};
+const Lf=(k,v,o={})=>({k,v,...o});
+const Ob=(k,kids,o={})=>({k,kids,kind:"obj",...o});
+const Ar=(k,kids,o={})=>({k,kids,kind:"arr",...o});
+function headerNode(h){
+  const t=h.tok,line=h.line,at=i=>val(t[i]);
+  const base=[Lf("line",line,{d:"Line number in the file."}),Lf("raw",h.raw,{d:"The line exactly as written in the file."}),Lf("keyword",t[0],{d:"Every header line starts with its keyword, which is how readers find it."})];
+  let kids;
+  switch(h.key){
+   case "LOCATION":kids=()=>[...base,Lf("city",at(1),{d:"Site or station name."}),Lf("stateProvince",at(2),{d:"State, province or region. Often blank or a dash outside the US."}),Lf("country",at(3),{d:"Country code or name."}),Lf("source",at(4),{d:"Where the data came from, such as TMY3, IWEC or a custom source."}),Lf("wmo",at(5),{d:"World Meteorological Organization station number."}),Lf("latitude",at(6),{d:"Degrees. Positive is north."}),Lf("longitude",at(7),{d:"Degrees. Negative is west."}),Lf("timeZone",at(8),{d:"Standard time offset from GMT in hours. EPW times are local standard time, never daylight time."}),Lf("elevation",at(9),{d:"Meters above sea level."})];break;
+   case "DESIGN CONDITIONS":
+    kids=()=>{const groups=[];let cur=null;for(let i=3;i<t.length;i++){if(/^[A-Za-z]/.test(t[i].trim())){cur={name:t[i].trim(),v:[]};groups.push(cur)}else if(cur)cur.v.push(t[i])}
+      return [...base,Lf("count",at(1),{d:"Number of design condition sets. Almost always 1 or 0."}),Lf("source",at(2),{d:"Which ASHRAE handbook edition the values come from."}),Lf("(blank)",at(3),{d:"An unused position kept for the format.",idx:true}),
+       Ob("groups",()=>groups.map(g=>{const labels=DC_LABELS[g.name],ok=labels&&labels.length===g.v.length;return Ar(g.name,()=>g.v.map((x,j)=>Lf(ok?labels[j]:j,val(x),{d:ok?dcHint(labels[j]):"Position "+j+" in this group.",idx:!ok})),{count:g.v.length,d:`${g.name} design values in a fixed order.${ok?" Labels follow the ASHRAE 2009 layout used by EnergyPlus.":" Value count does not match the ASHRAE 2009 layout, so positions are shown instead of names."}`})}),{count:groups.length,d:"Values are grouped by a text label: Heating, Cooling, Extremes."})]};
+    break;
+   case "TYPICAL/EXTREME PERIODS":{const n=+t[1]||0;
+    kids=()=>[...base,Lf("count",at(1),{d:"Number of periods listed."}),Ar("periods",()=>{const out=[];for(let i=0;i<n;i++){const b=2+i*4;if(t[b]===undefined)break;out.push(Ob(i,()=>[Lf("name",val(t[b])),Lf("type",val(t[b+1]),{d:"Extreme or Typical."}),Lf("start",val(t[b+2]),{d:"Month/day."}),Lf("end",val(t[b+3]),{d:"Month/day."})],{count:4,note:String(t[b]).trim(),d:"One week chosen to represent a season. Four values: name, type, start, end."}))}return out},{count:n,d:"Each period uses 4 positions after the count."})];break}
+   case "GROUND TEMPERATURES":{const n=+t[1]||0;
+    kids=()=>[...base,Lf("count",at(1),{d:"Number of depths."}),Ar("depths",()=>{const out=[];for(let i=0;i<n;i++){const b=2+i*16;if(t[b]===undefined)break;out.push(Ob(i,()=>[Lf("depth",val(t[b]),{d:"Meters below the surface."}),Lf("soilConductivity",val(t[b+1]),{d:"W/m·K. Often left blank."}),Lf("soilDensity",val(t[b+2]),{d:"kg/m³. Often left blank."}),Lf("soilSpecificHeat",val(t[b+3]),{d:"J/kg·K. Often left blank."}),Ob("monthly",()=>MONTHS.map((m,j)=>Lf(m,val(t[b+4+j]),{d:"Average ground temperature, °C."})),{count:12,d:"Twelve monthly temperatures, January first."})],{count:5,note:`${String(t[b]).trim()} m`,d:"One depth uses 16 positions: depth, 3 soil properties, 12 months."}))}return out},{count:n,d:"Each depth uses 16 positions after the count."})];break}
+   case "HOLIDAYS/DAYLIGHT SAVINGS":{const n=+t[4]||0;
+    kids=()=>[...base,Lf("leapYearObserved",at(1),{d:"Yes means the file includes February 29."}),Lf("dstStart",at(2),{d:"Daylight saving start, or 0 for none."}),Lf("dstEnd",at(3),{d:"Daylight saving end, or 0 for none."}),Lf("holidayCount",at(4)),Ar("holidays",()=>{const out=[];for(let i=0;i<n;i++){const b=5+i*2;out.push(Ob(i,()=>[Lf("name",val(t[b])),Lf("date",val(t[b+1]))],{count:2}))}return out},{count:n,d:"Each holiday uses 2 positions: name and date."})];break}
+   case "COMMENTS 1":case "COMMENTS 2":
+    kids=()=>[...base,Lf("text",h.raw.replace(/^COMMENTS [12],?/i,"").trim(),{d:"Free text. May itself contain commas, so readers take everything after the keyword."})];break;
+   case "DATA PERIODS":{const n=+t[1]||0;
+    kids=()=>[...base,Lf("count",at(1),{d:"Number of data periods. Usually 1 (the full year)."}),Lf("recordsPerHour",at(2),{d:"1 for hourly files. 4 would mean 15 minute data."}),Ar("periods",()=>{const out=[];for(let i=0;i<n;i++){const b=3+i*4;if(t[b]===undefined)break;out.push(Ob(i,()=>[Lf("name",val(t[b])),Lf("startDayOfWeek",val(t[b+1]),{d:"Weekday assigned to the first day. Simulations use it to place weekends."}),Lf("start",val(t[b+2])),Lf("end",val(t[b+3]))],{count:4,note:String(t[b]).trim()}))}return out},{count:n,d:"Each period uses 4 positions: name, start weekday, start date, end date."})];break}
+   default:kids=()=>base;
+  }
+  return Ob(camel(h.key),kids,{line,d:HEADER_INFO[h.key],note:`line ${line}`});
+}
+function recordNode(E,r){
+  const row=E.rows[r],line=E.rowLine[r];
+  return Ob(E.slot[r],()=>[Lf("line",line,{d:"Line number in the file."}),Lf("raw",row.join(","),{d:"The record exactly as written. 35 values separated by commas."}),
+    ...FIELDS.map((f,k)=>{const isMiss=f.kind==="num"&&isNaN(E.data[k][r]);return Lf(f.key,val(row[k]),{d:`Column ${k+1}: ${f.n}${f.u?" ("+f.u+")":""}. ${f.d}${isMiss?` This value is a missing code (${f.miss}).`:""}`,miss:isMiss,unit:f.u,col:k+1,rad:f.rad})})],
+    {count:37,line,note:`hour ${row[3]}${E.rph>1?":"+row[4]:""}`,d:"One hourly record."});
+}
+function buildTree(E){
+  const months={};E.dayStart.forEach((st,d)=>{const m=E.dayMonth[d];(months[m]=months[m]||[]).push(d)});
+  const H=E.headers;
+  return Ob("epw",()=>[
+    Ob("file",()=>[Lf("name",E.name),Lf("characters",E.size,{d:"Length of the text."}),Lf("lines",E.totalLines,{d:"Text lines including header."}),Lf("headerLines",H.length,{d:"Lines that start with a header keyword."}),Lf("firstDataLine",E.firstDataLine),Lf("records",E.N,{d:"Lines read as hourly data."})],{count:6,d:"Facts about the file itself, not part of the EPW format."}),
+    Ob("header",()=>H.map(headerNode),{count:H.length,d:"The eight keyword lines at the top of the file. Each is one comma separated line."}),
+    Ob("data",()=>[
+      Lf("records",E.N),Lf("recordsPerHour",E.rph),
+      Ar("schema",()=>FIELDS.map((f,k)=>Ob(k,()=>[Lf("column",k+1),Lf("name",f.n),Lf("key",f.key,{d:"Name used in this explorer."}),Lf("units",f.u||""),Lf("missingCode",f.miss,{d:"Values at or above this mean missing."}),Lf("group",GROUPS[f.g]),Lf("description",f.d)],{count:7,note:f.n,d:f.d})),{count:35,d:"The 35 fields every record contains, in column order. The file itself has no column headings; this order is defined by the format."}),
+      Ob("months",()=>Object.keys(months).map(Number).sort((a,b)=>a-b).map(m=>{const ds=months[m];const recs=ds.reduce((s,d)=>s+E.dayLen[d],0);
+        return Ar(MONTHS[m-1],()=>ds.map(d=>Ar(E.dayDay[d],()=>Array.from({length:E.dayLen[d]},(_,j)=>recordNode(E,E.dayStart[d]+j)),{count:E.dayLen[d],line:E.rowLine[E.dayStart[d]],note:`${MONTHS[m-1]} ${E.dayDay[d]}`,d:"One day of records."})),{count:ds.length,note:`${recs} records, source year ${E.rows[E.dayStart[ds[0]]][0]}`,d:"Records grouped by the month column. The file is not split this way; it is one long list. Grouping makes it browsable."})}),{count:Object.keys(months).length,d:"The hourly block, grouped by month and day for browsing."})
+    ],{count:4,d:"Everything after the header: one record per line."}),
+    Ar("checks",()=>E.checks.map((c,i)=>Lf(i,(c.w?"NOTE: ":"OK: ")+c.t)),{count:E.checks.length,d:"Validation results from reading this file."})
+  ],{count:4,d:"The whole file as nested data."});
+}
+const CARET='<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 7 5 3 8.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+function fmtLeaf(n){
+  const v=n.v;if(n.miss)return `<span class="tv miss">${esc(v)}</span><span class="tn-note">missing</span>`;
+  if(v===null)return `<span class="tv null">null</span>`;if(v==="")return `<span class="tv empty">empty</span>`;
+  if(typeof v==="number")return `<span class="tv num">${esc(v)}</span>${n.unit?`<span class="tn-note">${esc(n.unit)}</span>`:""}`;
+  const s=String(v);return `<span class="tv str">"${esc(s.length>80?s.slice(0,80)+"…":s)}"</span>`;
+}
+function childPath(parent,n,pkind){return pkind==="arr"||n.idx?`${parent}[${typeof n.k==="number"?n.k:JSON.stringify(n.k)}]`:/^[A-Za-z_]\w*$/.test(n.k)?`${parent}.${n.k}`:`${parent}[${JSON.stringify(String(n.k))}]`}
+function makeTree(treeEl,detailEl,root){
+  function nodeEl(n,path,pkind){
+    const wrap=document.createElement("div");wrap.setAttribute("role","treeitem");
+    const ln=document.createElement("div");ln.className="tl";wrap.appendChild(ln);
+    n.path=path;wrap._node=n;
+    const keyCls=pkind==="arr"||n.idx?"tk idx":"tk";
+    const badge=n.line?`<span class="tline">L${n.line}</span>`:"";
+    if(n.kids){
+      const [o,c]=n.kind==="arr"?["[","]"]:["{","}"];
+      ln.innerHTML=`<button type="button" class="caret" aria-expanded="false" tabindex="-1" aria-label="Expand ${esc(n.k)}">${CARET}</button><span class="${keyCls}">${esc(n.k)}</span><span class="tc">${o}${n.count!=null?" "+n.count+" ":""}${c}</span>${n.note?`<span class="tn-note">${esc(n.note)}</span>`:""}${badge}`;
+      wrap.setAttribute("aria-expanded","false");
+      ln.querySelector(".caret").onclick=e=>{e.stopPropagation();toggle(wrap)};
+      ln.ondblclick=()=>toggle(wrap);
+    }else{
+      ln.innerHTML=`<span class="caret blank" aria-hidden="true"></span><span class="${keyCls}">${esc(n.k)}</span><span class="tc">:</span>${fmtLeaf(n)}${n.rad?'<span class="badge">Radiance</span>':""}`;
+    }
+    ln.tabIndex=0;
+    ln.onclick=()=>select(wrap);
+    ln.onkeydown=e=>{
+      if(e.key==="Enter"||e.key===" "){e.preventDefault();n.kids?toggle(wrap):select(wrap)}
+      else if(e.key==="ArrowRight"&&n.kids&&wrap.getAttribute("aria-expanded")==="false"){e.preventDefault();toggle(wrap)}
+      else if(e.key==="ArrowLeft"){e.preventDefault();if(n.kids&&wrap.getAttribute("aria-expanded")==="true")toggle(wrap);else{const p=wrap.parentElement.closest("[role=treeitem]");if(p){p.firstChild.focus();select(p)}}}
+      else if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();const all=[...treeEl.querySelectorAll(".tl")].filter(x=>x.offsetParent);const nx=all[all.indexOf(ln)+(e.key==="ArrowDown"?1:-1)];if(nx){nx.focus();nx.click()}}
+    };
+    return wrap;
+  }
+  function toggle(wrap,force){
+    const n=wrap._node;if(!n.kids)return null;
+    const open=force!==undefined?force:wrap.getAttribute("aria-expanded")!=="true";
+    wrap.setAttribute("aria-expanded",open);wrap.querySelector(".caret").setAttribute("aria-expanded",open);
+    let box=wrap.querySelector(":scope > .tkids");
+    if(open&&!box){
+      box=document.createElement("div");box.className="tkids";box.setAttribute("role","group");
+      if(!n._kids)n._kids=n.kids();
+      const frag=document.createDocumentFragment();n._kids.forEach(c=>frag.appendChild(nodeEl(c,childPath(n.path,c,n.kind),n.kind)));box.appendChild(frag);wrap.appendChild(box);
+    }
+    if(box)box.hidden=!open;
+    return box;
+  }
+  function select(wrap){
+    treeEl.querySelectorAll(".tl.on").forEach(x=>x.classList.remove("on"));
+    wrap.firstChild.classList.add("on");
+    const n=wrap._node;let type,valHtml;
+    if(n.kids){if(!n._kids)n._kids=n.kids();type=n.kind==="arr"?`list of ${n._kids.length}`:`object with ${n._kids.length} keys`;valHtml=n._kids.slice(0,40).map(c=>esc(String(c.k))).join(", ")+(n._kids.length>40?" …":"")}
+    else{type=n.miss?"number (missing code)":n.v===null?"null":n.v===""?"empty string":typeof n.v==="number"?"number":"text";valHtml=esc(n.v===null?"null":String(n.v))}
+    detailEl.innerHTML=`<span class="eyebrow">Selected node</span><div class="tpath">${esc(n.path)}</div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="btn sm" data-copy>Copy path</button>${n.line?`<span class="tline">file line ${n.line}</span>`:""}${n.col?`<span class="tline">column ${n.col}</span>`:""}</div>
+     <dl class="kv" style="margin:0"><dt>Type</dt><dd>${esc(type)}</dd>${n.unit?`<dt>Units</dt><dd>${esc(n.unit)}</dd>`:""}</dl>
+     <div><div class="tn-note" style="margin-bottom:4px">${n.kids?"Contains":"Value"}</div><div class="tval">${valHtml||"(none)"}</div></div>${n.d?`<p style="font-size:.88rem">${esc(n.d)}</p>`:""}`;
+    const b=detailEl.querySelector("[data-copy]");
+    b.onclick=()=>{const fallback=()=>{const r=document.createRange();r.selectNodeContents(detailEl.querySelector(".tpath"));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent="Press Ctrl+C"};
+      try{navigator.clipboard.writeText(n.path).then(()=>{b.textContent="Copied";setTimeout(()=>b.textContent="Copy path",1400)},fallback)}catch(e){fallback()}};
+  }
+  function reset(){treeEl.innerHTML="";const el=nodeEl(root,"epw",null);treeEl.appendChild(el);toggle(el,true);select(el);return el}
+  const child=(wrap,key)=>[...toggle(wrap,true).children].find(c=>String(c._node.k)===String(key));
+  function expandAll(wrap){toggle(wrap,true);[...wrap.querySelector(":scope > .tkids").children].forEach(c=>{if(c._node.kids)expandAll(c)})}
+  reset();
+  return {
+    reset,
+    header(){const h=child(treeEl.firstChild,"header");expandAll(h);select(h);h.firstChild.focus()},
+    firstRecord(){const d=child(treeEl.firstChild,"data");const ms=child(d,"months");const m=toggle(ms,true).firstChild;const dy=toggle(m,true).firstChild;const r=toggle(dy,true).firstChild;toggle(r,true);select(r);r.firstChild.scrollIntoView({block:"nearest"});r.firstChild.focus()}
+  };
+}
+const S_TREE={
+ html:()=>`<div class="treegrid"><div class="panel" style="padding:12px"><div class="treebar"><button type="button" class="btn sm" data-t="h">Expand header</button><button type="button" class="btn sm" data-t="r">Open first record</button><button type="button" class="btn sm" data-t="c">Collapse all</button></div><div class="tree" role="tree" aria-label="EPW file structure"></div></div><div class="panel tdetail"></div></div>`,
+ bind:(p,cell)=>{const T=makeTree(cell.querySelector(".tree"),cell.querySelector(".tdetail"),buildTree(p.E));
+  cell.querySelector('[data-t="h"]').onclick=T.header;cell.querySelector('[data-t="r"]').onclick=T.firstRecord;cell.querySelector('[data-t="c"]').onclick=()=>{p.tree=null;S_TREE.bind(p,cell)}}
+};
+
+/* ---------- render all ---------- */
+function renderAll(){
+  renderBar();
+  fillCols("c-summary",S_SUMMARY);
+  fillCols("c-anatomy",S_ANATOMY);
+  fillCols("c-header",S_HEADER);
+  renderFields();
+  fillCols("c-explore",S_EXPLORE);
+  fillCols("c-record",S_RECORD);
+  fillCols("c-wind",S_WIND);
+  fillCols("c-tree",S_TREE);
+  selectField(sel);
+  drawWinds();
+}
+function redraw(){drawCharts();drawWinds()}
+
+/* ---------- themes ---------- */
+function applySkin(v){if(v&&v!=="auto")document.documentElement.setAttribute("data-skin",v);else document.documentElement.removeAttribute("data-skin");$("#skinSel").value=v||"auto";setTimeout(redraw,30)}
+$("#skinSel").onchange=e=>{applySkin(e.target.value);try{localStorage.setItem("skyvivaldi-skin",e.target.value)}catch(err){}};
+
+/* ---------- page drop ---------- */
+let dragN=0;
+window.addEventListener("dragenter",e=>{if(![...(e.dataTransfer?.types||[])].includes("Files"))return;e.preventDefault();dragN++;$("#drop").hidden=false});
+window.addEventListener("dragleave",()=>{dragN--;if(dragN<=0){dragN=0;$("#drop").hidden=true}});
+window.addEventListener("dragover",e=>e.preventDefault());
+window.addEventListener("drop",e=>{e.preventDefault();dragN=0;$("#drop").hidden=true;const files=[...e.dataTransfer.files];if(files.length)loadFiles(files,null)});
+let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(redraw,150)});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>setTimeout(redraw,30));
+new MutationObserver(()=>setTimeout(redraw,30)).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+/* ---------- start ---------- */
+buildSelectors();
+applySkin(recall("skyvivaldi-skin")||"auto");
+{const a=newPane(),b=newPane();PANES=[a,b];
+ a.E=parseEPW(makeSample("marine"),"marine_sample.epw");a.name="marine_sample.epw";a.sample=true;a.sampleKey="marine";
+ b.E=parseEPW(makeSample("desert"),"desert_sample.epw");b.name="desert_sample.epw";b.sample=true;b.sampleKey="desert";}
+renderAll();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(redraw);
+</script>
+</body>
+</html>
