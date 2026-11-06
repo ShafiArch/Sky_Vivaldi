@@ -184,7 +184,7 @@ svg.spark{display:block}
 .legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.76rem;color:var(--muted);margin-top:8px}
 .legend .bar{height:10px;flex:1;min-width:60px;max-width:220px;border-radius:3px}
 .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.76rem;padding:5px 8px;border-radius:5px;white-space:nowrap;z-index:5;font-variant-numeric:tabular-nums}
-.cmpgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(16px,2vw,32px)}
+.cmpgrid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,1fr);gap:clamp(16px,2vw,32px)}
 @media (max-width:820px){.cmpgrid{grid-template-columns:1fr}}
 .plegend{display:flex;flex-wrap:wrap;gap:12px;font-size:.82rem}
 .plegend span{display:inline-flex;align-items:center;gap:6px}
@@ -267,6 +267,42 @@ details.advanced>summary:hover .adv-title{color:var(--accent)}
 .adv-title{font-family:var(--display);font-weight:300;font-size:clamp(1.6rem,1.1vw + 1rem,2.4rem)}
 .adv-sub{color:var(--muted);font-size:.95rem}
 .adv-body{display:flex;flex-direction:column;gap:clamp(24px,2.4vw,44px);padding-top:16px}
+.cblock{display:flex;flex-direction:column;gap:10px}
+#s-explore{gap:clamp(30px,3.2vw,60px)}
+.bhead{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.bhead h3{font-size:clamp(1.25rem,.6vw + 1rem,1.7rem);font-weight:300}
+.fnote{font-family:var(--mono);font-size:.74rem;color:var(--muted);max-width:110ch}
+.cnote{font-size:.88rem;color:var(--muted);max-width:90ch}
+.cmpgrid .tn-note{margin-bottom:6px}
+/* Flat paper: no boxes, no rules */
+header.top{border-bottom:0;padding-bottom:0}
+.panebar{border-bottom:0}
+.phead{border:0;background:transparent;padding:4px 0;border-radius:0}
+.addbtn,.addbtn:hover{border:0;background:transparent}
+.panel,.ridgewrap{background:transparent;border:0;border-radius:0;padding:0}
+.summary{background:transparent;border:0;border-radius:0;gap:20px 24px}
+.summary div{background:transparent;padding:0}
+.chk,.chk.warn{border:0;background:transparent;padding:0}
+.rrow,.rside .rhead{border-bottom:0}
+th,td{border-bottom:0}
+#fieldTable tr.grp td{background:transparent;padding-top:22px}
+#fieldTable th.pc{border-top:0;color:var(--pc)}
+#fieldTable tbody tr.f.sel td:first-child{box-shadow:none}
+.lineBtn{border:0;background:transparent}
+.lineBtn:hover{background:var(--code)}
+.lineBtn[aria-pressed="true"]{background:var(--accent-soft)}
+.tok{border:0;background:var(--code)}
+.tok.kwd{background:var(--ink)}
+.rc{border:0;padding-inline:0}
+.rc.missing{padding-inline:8px;border-radius:4px}
+.rc.rad .h span{color:var(--accent)}
+.emptycell{border:0;padding:12px 0;text-align:left}
+details.advanced{border-top:0}
+footer{border-top:0}
+.tval{border:0;background:var(--code)}
+.phead{flex-wrap:wrap;row-gap:6px}
+.pname{flex:1 1 calc(100% - 40px)}
+#fieldSel{font-size:1rem}
 .drop{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 85%,transparent);border:3px dashed var(--accent);display:flex;align-items:center;justify-content:center;text-align:center;font-family:var(--display);font-size:1.8rem;color:var(--accent);z-index:50;padding:20px}
 footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -305,7 +341,7 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
     <div class="hero-head">
       <div class="sec-head"><span class="eyebrow">The year in layers</span><h2 id="heroTitle">Climate ridges</h2><p class="lede" id="heroLede"></p></div>
       <div class="hero-ctl">
-        <select class="sel" id="heroField" aria-label="Field shown in the ridges"></select>
+        <select class="sel fsel" id="heroField" data-c="ridge" aria-label="Field shown in the ridges"></select>
         <div class="chips" id="heroStat" role="group" aria-label="Daily statistic">
           <button type="button" class="chip" data-s="max">Daily max</button><button type="button" class="chip" data-s="mean">Daily mean</button><button type="button" class="chip" data-s="min">Daily min</button>
         </div>
@@ -327,6 +363,8 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
       <span class="eyebrow">Every hour of every day</span>
       <h2>Daily surfaces</h2>
       <p class="lede">One surface per climate: the year runs along the front edge, the hours of the day recede from midnight at the front to late evening at the back, and height and color show the selected field. Each hour line is smoothed over five days.</p>
+      <div class="bhead"><select class="sel fsel" data-c="surf" aria-label="Field for the daily surfaces"></select></div>
+      <p class="fnote" data-n="surf"></p>
     </div>
     <div class="cols" id="c-surface"></div>
   </section>
@@ -334,23 +372,47 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
   <section id="s-explore">
     <div class="sec-head">
       <span class="eyebrow">Field explorer</span>
-      <h2 id="exTitle">Explore a field</h2>
+      <h2>Charts</h2>
+      <p class="lede">Every chart has its own field menu. Use the row below to set all charts on the page to the same field at once.</p>
     </div>
     <div class="explorer-bar">
-      <select class="sel" id="fieldSel" aria-label="Field to chart"></select>
+      <label class="themepick" for="fieldSel">Set every chart to<select class="sel" id="fieldSel"></select></label>
       <div class="chips" id="quickChips"></div>
       <label class="toggle" for="sharedScale"><input type="checkbox" id="sharedScale" checked> Same scale for all files</label>
     </div>
-    <div class="panel field-note" id="fieldNote"></div>
-    <div id="cmpBlock" class="panel" hidden>
-      <div class="cap" style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:10px"><h3>Files compared</h3><div class="plegend" id="cmpLegend"></div></div>
+    <div class="cblock" id="cmpBlock" hidden>
+      <div class="bhead"><h3>Files compared</h3><select class="sel fsel" data-c="cmp" aria-label="Field for files compared"></select><select class="sel" id="cmpMonth" aria-label="Month for the average day"></select></div>
+      <p class="fnote" data-n="cmp"></p>
+      <div class="plegend" id="cmpLegend"></div>
       <div class="cmpgrid">
-        <div class="chart"><p class="tn-note" style="margin-bottom:6px">Monthly mean</p><canvas id="cmpMonthly"></canvas></div>
-        <div class="chart"><p class="tn-note" style="margin-bottom:6px" id="cmpDayLbl">Average day</p><canvas id="cmpDay"></canvas></div>
+        <div class="chart"><p class="tn-note">Monthly mean, January to December</p><canvas id="cmpMonthly"></canvas></div>
+        <div class="chart"><p class="tn-note" id="cmpDayLbl">Average day</p><canvas id="cmpDay"></canvas></div>
       </div>
     </div>
-    <div class="chips" id="monthChips" aria-label="Month for average day charts"></div>
-    <div class="cols" id="c-explore"></div>
+    <div class="cblock">
+      <div class="bhead"><h3>Average day by month</h3><select class="sel fsel" data-c="ad" aria-label="Field for average day by month"></select></div>
+      <p class="fnote" data-n="ad"></p>
+      <p class="cnote">Twelve average days in a row, one per month. The line is each hour's mean; the band spans that hour's lowest to highest value in the month. Hover for values.</p>
+      <div class="cols" id="c-ad"></div>
+    </div>
+    <div class="cblock">
+      <div class="bhead"><h3>Every hour of the year</h3><select class="sel fsel" data-c="heat" aria-label="Field for the hourly heatmap"></select></div>
+      <p class="fnote" data-n="heat"></p>
+      <p class="cnote">Days across, hours down. Hover for values.</p>
+      <div class="cols" id="c-heat"></div>
+    </div>
+    <div class="cblock">
+      <div class="bhead"><h3>Monthly range</h3><select class="sel fsel" data-c="mr" aria-label="Field for the monthly range"></select></div>
+      <p class="fnote" data-n="mr"></p>
+      <p class="cnote">Each bar spans the month's lowest to highest hour; the dot is the monthly mean.</p>
+      <div class="cols" id="c-mr"></div>
+    </div>
+    <div class="cblock">
+      <div class="bhead"><h3>Daily envelope</h3><select class="sel fsel" data-c="env" aria-label="Field for the daily envelope"></select></div>
+      <p class="fnote" data-n="env"></p>
+      <p class="cnote">The band is each day's low to high; the line is the daily mean.</p>
+      <div class="cols" id="c-env"></div>
+    </div>
   </section>
 
   <section id="s-wind">
@@ -391,7 +453,7 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
     <div class="sec-head">
       <span class="eyebrow">3 · The 35 hourly fields</span>
       <h2>Field dictionary</h2>
-      <p class="lede">Column position, meaning, units and the code the format uses for "missing", with each file's mean and range. Select a row to chart it. Fields marked <span class="badge" style="margin:0">Radiance</span> are the ones daylight tools such as gendaymtx and gendaylit read.</p>
+      <p class="lede">Column position, meaning, units and the code the format uses for "missing", with each file's mean and range. Select a row to set every chart to that field. Fields marked <span class="badge" style="margin:0">Radiance</span> are the ones daylight tools such as gendaymtx and gendaylit read.</p>
     </div>
     <div class="panel tbl-wrap" style="padding:0">
       <table id="fieldTable"><thead></thead><tbody></tbody></table>
@@ -673,6 +735,7 @@ function recall(k){try{return localStorage.getItem(k)}catch(e){return null}}
 
 /* ---------- state ---------- */
 let PANES=[],nextId=1,sel=6,selMonth=6,sharedScale=true;
+const CF={ridge:6,surf:6,cmp:6,ad:6,heat:6,mr:6,env:6};
 const loaded=()=>PANES.filter(p=>p.E);
 function newPane(){return {id:nextId++,E:null,name:"",sample:false,err:"",anat:0}}
 function paneIdx(p){return PANES.indexOf(p)}
@@ -827,7 +890,7 @@ function renderFields(){
   });
   const tb=$("#fieldTable tbody");tb.innerHTML=html;
   tb.querySelectorAll("tr.f").forEach(tr=>{const k=+tr.dataset.k;if(FIELDS[k].kind!=="num"){tr.style.cursor="default";return}
-    const go=()=>{selectField(k);document.getElementById("s-explore").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"})};
+    const go=()=>{selectField(k);document.getElementById("s-hero").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"})};
     tr.onclick=go;tr.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}});
 }
 
@@ -835,43 +898,84 @@ function renderFields(){
 function buildSelectors(){
   let html="",g=null;
   FIELDS.forEach((f,k)=>{if(f.kind!=="num")return;if(f.g!==g){if(g)html+="</optgroup>";g=f.g;html+=`<optgroup label="${GROUPS[g]}">`}html+=`<option value="${k}">${k+1}. ${esc(f.n)}</option>`});
-  $("#fieldSel").innerHTML=html+"</optgroup>";$("#heroField").innerHTML=html+"</optgroup>";
-  $("#heroField").onchange=e=>selectField(+e.target.value);
+  html+="</optgroup>";
+  $("#fieldSel").innerHTML=html;
+  document.querySelectorAll(".fsel").forEach(el=>{el.innerHTML=html;el.onchange=e=>setField(el.dataset.c,+e.target.value)});
   $("#heroStat").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{heroStat=b.dataset.s;drawRidges(true)});
-  $("#fieldSel").onchange=e=>selectField(+e.target.value);
+  $("#fieldSel").onchange=e=>setAllFields(+e.target.value);
   const quick=[[6,"Dry bulb"],[8,"RH"],[13,"GHI"],[14,"DNI"],[15,"DHI"],[21,"Wind speed"],[22,"Sky cover"]];
   $("#quickChips").innerHTML=quick.map(([k,l])=>`<button type="button" class="chip" data-k="${k}">${l}</button>`).join("");
-  $("#quickChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>selectField(+b.dataset.k));
-  $("#monthChips").innerHTML=MONTHS.map((m,i)=>`<button type="button" class="chip" data-m="${i}">${m}</button>`).join("");
-  $("#monthChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{selMonth=+b.dataset.m;syncChips();drawCharts()});
+  $("#quickChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>setAllFields(+b.dataset.k));
+  $("#cmpMonth").innerHTML=MONTHS.map((m,i)=>`<option value="${i}">Average day in ${m}</option>`).join("");$("#cmpMonth").value=selMonth;
+  $("#cmpMonth").onchange=e=>{selMonth=+e.target.value;syncChips();drawCompare()};
   $("#sharedScale").onchange=e=>{sharedScale=e.target.checked;drawCharts()};
   $("#recMonth").innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}">${m}</option>`).join("");$("#recMonth").value=6;
   ["recMonth","recDay","recHour"].forEach(id=>$("#"+id).addEventListener("input",()=>fillCols("c-record",S_RECORD)));
 }
 function syncChips(){
-  $("#quickChips").querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.k===sel));
-  $("#monthChips").querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.m===selMonth));
+  const allSame=Object.values(CF).every(v=>v===sel);
+  $("#quickChips").querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",allSame&&+b.dataset.k===sel));
   $("#cmpDayLbl").textContent=`Average day in ${MONTHS[selMonth]}`;
 }
-function selectField(k){
-  sel=k;$("#fieldSel").value=k;$("#heroField").value=k;syncChips();
-  document.querySelectorAll("#fieldTable tr.f").forEach(tr=>tr.classList.toggle("sel",+tr.dataset.k===k));
-  const f=FIELDS[k];
-  $("#exTitle").textContent=f.n;
-  $("#fieldNote").innerHTML=`<span class="unit">Column ${k+1} · ${esc(f.u||"no units")} · missing code ${f.miss}</span><p>${esc(f.d)}${f.rad?" Radiance sky generators take this value hour by hour, together with the sun position from the date, time and location.":""}</p>`;
-  drawCharts();drawRidges(true);
+const fieldNote=k=>{const f=FIELDS[k];return `Column ${k+1} · ${f.u||"no units"} · ${f.d}`};
+function updateNotes(){
+  document.querySelectorAll(".fsel").forEach(el=>el.value=CF[el.dataset.c]);
+  document.querySelectorAll(".fnote").forEach(n=>n.textContent=fieldNote(CF[n.dataset.n]));
+  syncChips();
 }
+function eachCell(id,fn){document.querySelectorAll("#"+id+" .cell").forEach(cell=>{const p=PANES.find(x=>x.id===+cell.dataset.id);if(p&&p.E)fn(p,cell)})}
+function drawChart(c,anim){
+  if(c==="ridge")drawRidges(anim);else if(c==="surf")drawSurfaces();else if(c==="cmp")drawCompare();
+  else if(c==="ad")eachCell("c-ad",drawAdStrip);else if(c==="heat")eachCell("c-heat",drawHeat);
+  else if(c==="mr")eachCell("c-mr",drawMonthly);else if(c==="env")eachCell("c-env",drawAnnual);
+}
+function setField(c,k){CF[c]=k;updateNotes();drawChart(c,true)}
+function setAllFields(k){
+  sel=k;Object.keys(CF).forEach(c=>CF[c]=k);$("#fieldSel").value=k;
+  document.querySelectorAll("#fieldTable tr.f").forEach(tr=>tr.classList.toggle("sel",+tr.dataset.k===k));
+  updateNotes();drawCharts();drawRidges(true);
+}
+const selectField=setAllFields;
 function ownRange(E,k){const s=E.stats[k];let lo=s.min,hi=s.max;if(FIELDS[k].g==="solar"||FIELDS[k].g==="illum")lo=Math.min(0,lo);if(!isFinite(lo)||!isFinite(hi)){lo=0;hi=1}if(hi===lo)hi=lo+1;return[lo,hi]}
 function rangeFor(E,k){const L=loaded();if(!sharedScale||L.length<2)return ownRange(E,k);let lo=Infinity,hi=-Infinity;L.forEach(p=>{if(isNaN(p.E.stats[k].mean))return;const r=ownRange(p.E,k);lo=Math.min(lo,r[0]);hi=Math.max(hi,r[1])});return isFinite(lo)?[lo,hi]:ownRange(E,k)}
 function monthTicks(ctx,E,L,pw,h,nd){axisText(ctx);ctx.textAlign="left";let last=-1;for(let d=0;d<nd;d++){const m=E.dayMonth[d];if(m!==last){last=m;if(pw>360||m%2===1)ctx.fillText(pw<200?MONTHS[m-1][0]:MONTHS[m-1]||"",L+pw*d/nd+2,h-6)}}}
-const S_EXPLORE={
- html:p=>`<div class="panel chart heatwrap"><div class="cap"><h3>Every hour of the year</h3><p>Days across, hours down. Hover for values.</p></div><canvas class="c-heat"></canvas><div class="legend"><span class="lgMin num"></span><span class="bar lgBar"></span><span class="lgMax num"></span><span class="lgMiss"></span></div><div class="tip" hidden></div></div>
-  <div class="panel chart"><div class="cap"><h3>Monthly range</h3><p>Bar spans min to max; dot is the mean.</p></div><canvas class="c-monthly"></canvas></div>
-  <div class="panel chart"><div class="cap"><h3>Average day by month</h3><p class="c-avgcap"></p></div><canvas class="c-avgday"></canvas></div>
-  <div class="panel chart"><div class="cap"><h3>Daily envelope</h3><p>Band is each day's min to max; line is the daily mean.</p></div><canvas class="c-annual"></canvas></div>`
-};
+const S_HEAT={html:()=>`<div class="chart heatwrap"><canvas class="c-heat"></canvas><div class="legend"><span class="lgMin num"></span><span class="bar lgBar"></span><span class="lgMax num"></span><span class="lgMiss"></span></div><div class="tip" hidden></div></div>`};
+const S_MR={html:()=>`<div class="chart"><canvas class="c-monthly"></canvas></div>`};
+const S_ENV={html:()=>`<div class="chart"><canvas class="c-annual"></canvas></div>`};
+const S_AD={html:()=>`<div class="chart adwrap"><canvas class="c-ad"></canvas><div class="tip" hidden></div></div>`};
+function drawAdStrip(p,cell){
+  const E=p.E,cv=cell.querySelector(".c-ad"),wrap=cell.querySelector(".adwrap"),tip=cell.querySelector(".tip"),k=CF.ad,f=FIELDS[k];
+  const {ctx,w,h}=setup(cv,chartH(cv,.42,210,420));
+  if(isNaN(E.stats[k].mean)){noData(ctx,w,h);cv.onmousemove=null;return}
+  const a=E.data[k],mo=E.data[1],hc=E.data[3];
+  const S=new Float64Array(288),C=new Float64Array(288),MN=new Float64Array(288).fill(Infinity),MX=new Float64Array(288).fill(-Infinity);
+  for(let r=0;r<E.N;r++){const v=a[r];if(isNaN(v))continue;const i=(mo[r]-1)*24+Math.min(23,Math.max(0,(hc[r]|0)-1));S[i]+=v;C[i]++;if(v<MN[i])MN[i]=v;if(v>MX[i])MX[i]=v}
+  const mean=i=>C[i]?S[i]/C[i]:NaN;
+  const [lo0,hi0]=rangeFor(E,k);const {lo,hi,t}=niceTicks(lo0,hi0,4);
+  const L=50,Rr=6,T=10,B=24,pw=w-L-Rr,ph=h-T-B,seg=pw/12,x=(m,hr)=>L+seg*m+seg*(.07+.86*hr/23),y=v=>T+ph*(1-(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo));
+  frame(ctx,L,T,pw,ph,t,y);
+  const col=pcol(paneIdx(p));
+  for(let m=0;m<12;m++){
+    const idx=[];for(let hr=0;hr<24;hr++)if(C[m*24+hr])idx.push(hr);
+    axisText(ctx);ctx.textAlign="center";ctx.fillText(pw<330?MONTHS[m][0]:MONTHS[m],L+seg*(m+.5),h-6);
+    if(!idx.length)continue;
+    ctx.globalAlpha=.2;ctx.fillStyle=col;ctx.beginPath();
+    idx.forEach((hr,j)=>{const X=x(m,hr),Y=y(MX[m*24+hr]);j?ctx.lineTo(X,Y):ctx.moveTo(X,Y)});
+    for(let j=idx.length-1;j>=0;j--){const hr=idx[j];ctx.lineTo(x(m,hr),y(MN[m*24+hr]))}
+    ctx.closePath();ctx.fill();ctx.globalAlpha=1;
+    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.lineJoin="round";ctx.beginPath();
+    idx.forEach((hr,j)=>{const X=x(m,hr),Y=y(mean(m*24+hr));j?ctx.lineTo(X,Y):ctx.moveTo(X,Y)});ctx.stroke();
+  }
+  cv.onmousemove=e=>{const rc=cv.getBoundingClientRect(),X=e.clientX-rc.left,Y=e.clientY-rc.top;
+    if(X<L||X>=L+pw||Y<T||Y>T+ph){tip.hidden=true;return}
+    const m=Math.min(11,Math.floor((X-L)/seg)),fr=((X-L)-seg*m)/seg,hr=Math.max(0,Math.min(23,Math.round((fr-.07)/.86*23))),i=m*24+hr;
+    if(!C[i]){tip.hidden=true;return}
+    tip.textContent=`${MONTHS[m]} · ${String(hr).padStart(2,"0")}:00 to ${String(hr+1).padStart(2,"0")}:00 · mean ${fmt(mean(i),f.dp)}, low ${fmt(MN[i],f.dp)}, high ${fmt(MX[i],f.dp)} ${f.u}`;
+    tip.hidden=false;const wr=wrap.getBoundingClientRect(),tw=tip.offsetWidth;let lx=e.clientX-wr.left+12;if(lx+tw>wr.width-8)lx=e.clientX-wr.left-tw-12;tip.style.left=Math.max(4,lx)+"px";tip.style.top=(e.clientY-wr.top+14)+"px"};
+  cv.onmouseleave=()=>tip.hidden=true;
+}
 function drawHeat(p,cell){
-  const E=p.E,cv=cell.querySelector(".c-heat"),wrap=cell.querySelector(".heatwrap"),tip=cell.querySelector(".tip"),k=sel,a=E.data[k],nd=E.dayStart.length,S=E.maxSlots;
+  const E=p.E,cv=cell.querySelector(".c-heat"),wrap=cell.querySelector(".heatwrap"),tip=cell.querySelector(".tip"),k=CF.heat,a=E.data[k],nd=E.dayStart.length,S=E.maxSlots;
   const H=Math.max(200,Math.min(560,wrap.clientWidth*.42));
   const {ctx,w,h}=setup(cv,H);const L=40,Rr=6,T=6,B=22,pw=w-L-Rr,ph=h-T-B;
   const f=FIELDS[k];
@@ -899,7 +1003,7 @@ function drawHeat(p,cell){
   cv.onmouseleave=()=>tip.hidden=true;
 }
 function drawMonthly(p,cell){
-  const E=p.E,cv=cell.querySelector(".c-monthly"),k=sel,a=E.data[k],mo=E.data[1];const {ctx,w,h}=setup(cv,chartH(cv,.55));
+  const E=p.E,cv=cell.querySelector(".c-monthly"),k=CF.mr,a=E.data[k],mo=E.data[1];const {ctx,w,h}=setup(cv,chartH(cv,.55));
   if(isNaN(E.stats[k].mean))return noData(ctx,w,h);
   const mn=new Array(12).fill(Infinity),mx=new Array(12).fill(-Infinity),mean=E.stats[k].monthly;
   for(let r=0;r<E.N;r++){const v=a[r];if(isNaN(v))continue;const m=mo[r]-1;if(v<mn[m])mn[m]=v;if(v>mx[m])mx[m]=v}
@@ -919,23 +1023,8 @@ function avgDayOf(E,k){
   return sums.map((s,m)=>Array.from(s,(v,hr)=>cnt[m][hr]?v/cnt[m][hr]:NaN));
 }
 function drawLines(ctx,arr,x,y,col,lw){ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();let st=false;arr.forEach((v,i)=>{if(!isFinite(v)){st=false;return}st?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v));st=true});ctx.stroke()}
-function drawAvgDay(p,cell){
-  const E=p.E,cv=cell.querySelector(".c-avgday"),k=sel;const {ctx,w,h}=setup(cv,chartH(cv,.5));
-  cell.querySelector(".c-avgcap").textContent=`${MONTHS[selMonth]} highlighted; other months in grey.`;
-  const avg=avgDayOf(E,k),vals=avg.flat().filter(isFinite);if(!vals.length)return noData(ctx,w,h);
-  let [lo0,hi0]=sharedScale&&loaded().length>1?rangeFor(E,k):[Math.min(...vals),Math.max(...vals)];
-  if(FIELDS[k].g==="solar"||FIELDS[k].g==="illum")lo0=Math.min(0,lo0);
-  const {lo,hi,t}=niceTicks(lo0,hi0,4);
-  const L=50,Rr=6,T=10,B=22,pw=w-L-Rr,ph=h-T-B,x=hr=>L+pw*(hr+.5)/24,y=v=>T+ph*(1-(v-lo)/(hi-lo));
-  frame(ctx,L,T,pw,ph,t,y);axisText(ctx);ctx.textAlign="center";[0,6,12,18,24].forEach(hh=>ctx.fillText(String(hh).padStart(2,"0")+(pw<260?"":":00"),L+pw*hh/24,h-6));
-  avg.forEach((arr,m)=>{if(m!==selMonth)drawLines(ctx,arr,x,y,css("--line-strong"),1)});
-  const col=pcol(paneIdx(p));drawLines(ctx,avg[selMonth],x,y,col,2.5);
-  const A=avg[selMonth],pk=A.reduce((b,v,i)=>isFinite(v)&&(b<0||v>A[b])?i:b,-1);
-  if(pk>=0){ctx.fillStyle=col;ctx.beginPath();ctx.arc(x(pk),y(A[pk]),3.5,0,7);ctx.fill();ctx.font=`500 ${fs()}px ${css("--body")}`;ctx.textAlign=pk>14?"right":"left";ctx.fillText(`peak ${fmt(A[pk],FIELDS[k].dp)}`,x(pk)+(pk>14?-7:7),Math.max(T+10,y(A[pk])-6))}
-  else{axisText(ctx);ctx.textAlign="center";ctx.fillText(`No ${MONTHS[selMonth]} data in this file.`,L+pw/2,T+ph/2)}
-}
 function drawAnnual(p,cell){
-  const E=p.E,cv=cell.querySelector(".c-annual"),k=sel,a=E.data[k],nd=E.dayStart.length;const {ctx,w,h}=setup(cv,chartH(cv,.45));
+  const E=p.E,cv=cell.querySelector(".c-annual"),k=CF.env,a=E.data[k],nd=E.dayStart.length;const {ctx,w,h}=setup(cv,chartH(cv,.45));
   if(isNaN(E.stats[k].mean))return noData(ctx,w,h);
   const dmn=new Float64Array(nd).fill(NaN),dmx=new Float64Array(nd).fill(NaN),dm=new Float64Array(nd).fill(NaN);
   for(let d=0;d<nd;d++){let s=0,n=0,mn=Infinity,mx=-Infinity;const st=E.dayStart[d];for(let j=0;j<E.dayLen[d];j++){const v=a[st+j];if(isNaN(v))continue;s+=v;n++;if(v<mn)mn=v;if(v>mx)mx=v}if(n){dmn[d]=mn;dmx[d]=mx;dm[d]=s/n}}
@@ -950,7 +1039,7 @@ function drawAnnual(p,cell){
 function drawCompare(){
   const L=loaded(),blk=$("#cmpBlock");
   if(L.length<2){blk.hidden=true;return}
-  blk.hidden=false;const k=sel,f=FIELDS[k];
+  blk.hidden=false;const k=CF.cmp,f=FIELDS[k];
   $("#cmpLegend").innerHTML=L.map(p=>{const i=paneIdx(p);return `<span style="--pc:${PCOL[i]}"><i></i>${LETTERS[i]} · ${esc(locOf(p.E).city||p.name)}</span>`}).join("");
   {const cv=$("#cmpMonthly");const {ctx,w,h}=setup(cv,chartH(cv,.42,200,420));
    const series=L.map(p=>p.E.stats[k].monthly),vals=series.flat().filter(isFinite);if(!vals.length)noData(ctx,w,h);else{
@@ -984,9 +1073,8 @@ function drawWind(p,cell){
 }
 const S_WIND={html:()=>`<div class="panel windgrid"><div class="chart"><canvas class="c-rose"></canvas></div><div class="wlegend"></div></div>`};
 function drawCharts(){
-  drawSurfaces();
-  drawCompare();
-  document.querySelectorAll("#c-explore .cell").forEach(cell=>{const p=PANES.find(x=>x.id===+cell.dataset.id);if(p&&p.E){drawHeat(p,cell);drawMonthly(p,cell);drawAvgDay(p,cell);drawAnnual(p,cell)}});
+  drawSurfaces();drawCompare();
+  eachCell("c-ad",drawAdStrip);eachCell("c-heat",drawHeat);eachCell("c-mr",drawMonthly);eachCell("c-env",drawAnnual);
 }
 function drawWinds(){document.querySelectorAll("#c-wind .cell").forEach(cell=>{const p=PANES.find(x=>x.id===+cell.dataset.id);if(p&&p.E)drawWind(p,cell)})}
 
@@ -1002,7 +1090,7 @@ function dailySeries(E,k,stat){
   return sm;
 }
 function heroLayers(){
-  const L=loaded(),k=sel,bg=toHex(css("--bg"));
+  const L=loaded(),k=CF.ridge,bg=toHex(css("--bg"));
   if(!L.length)return [];
   if(L.length===1){const p=L[0],base=toHex(pcol(paneIdx(p)));
     return [["max",.55],["mean",.28],["min",0]].map(([st,t])=>({label:`Daily ${st}`,color:t?toHex(mixC(base,bg,t)):base,series:dailySeries(p.E,k,st)}));}
@@ -1017,7 +1105,7 @@ function drawRidges(animate){
   const h=Math.round(Math.max(260,w*.82));
   const dpr=window.devicePixelRatio||1;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);cv.style.height=h+"px";
   const ctx=cv.getContext("2d");
-  const k=sel,f=FIELDS[k],layers=heroLayers(),L=loaded(),single=L.length===1;
+  const k=CF.ridge,f=FIELDS[k],layers=heroLayers(),L=loaded(),single=L.length===1;
   $("#heroStat").hidden=single||!L.length;
   $("#heroStat").querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===heroStat));
   $("#heroTitle").textContent=f.n;
@@ -1029,6 +1117,8 @@ function drawRidges(animate){
   const paint=prog=>{
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
     if(!vals.length){noData(ctx,w,h,L.length?"No valid values for this field.":"No file loaded.");return}
+    let vmn=Infinity,vmx=-Infinity;for(const v of vals){if(v<vmn)vmn=v;if(v>vmx)vmx=v}
+    if(vmx===vmn){noData(ctx,w,h,`Every ${single?"":"daily "+heroStat+" "}value is ${fmt(vmn,f.dp)} ${f.u}. Try another statistic or field.`);return}
     let lo0=Math.min(...vals),hi0=Math.max(...vals);if(f.g==="solar"||f.g==="illum")lo0=Math.min(0,lo0);
     const {lo,hi,t}=niceTicks(lo0,hi0,4);
     const n=layers.length,F=fs();
@@ -1082,7 +1172,7 @@ function hourSeries(E,k){
     for(let d=0;d<nd;d++){let s=0,n=0;for(let j=d-2;j<=d+2;j++){const v=avg[Math.min(nd-1,Math.max(0,j))];if(!isNaN(v)){s+=v;n++}}if(n)out[d]=s/n}return out});
 }
 function drawSurface(p,cell){
-  const E=p.E,cv=cell.querySelector(".c-surf"),k=sel,f=FIELDS[k];
+  const E=p.E,cv=cell.querySelector(".c-surf"),k=CF.surf,f=FIELDS[k];
   const w=Math.max(240,cv.parentElement.clientWidth-parseFloat(getComputedStyle(cv.parentElement).paddingLeft)*2);
   const h=Math.round(w*.7);const dpr=window.devicePixelRatio||1;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);cv.style.height=h+"px";
   const ctx=cv.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
@@ -1289,11 +1379,14 @@ function renderAll(){
   fillCols("c-header",S_HEADER);
   renderFields();
   fillCols("c-surface",S_SURFACE);
-  fillCols("c-explore",S_EXPLORE);
+  fillCols("c-ad",S_AD);
+  fillCols("c-heat",S_HEAT);
+  fillCols("c-mr",S_MR);
+  fillCols("c-env",S_ENV);
   fillCols("c-record",S_RECORD);
   fillCols("c-wind",S_WIND);
   fillCols("c-tree",S_TREE);
-  selectField(sel);
+  updateNotes();drawCharts();drawRidges(true);
   drawWinds();
 }
 function redraw(){drawCharts();drawWinds();drawRidges(false)}

@@ -14,7 +14,7 @@ A browser tool for learning the EnergyPlus Weather (EPW) file format and compari
 - Shows how the file is built: the eight header lines, then one record per hour with 35 comma separated fields.
 - Decodes the header (location, design conditions, typical and extreme weeks, ground temperatures, calendar).
 - Lists all 35 hourly fields with units, missing codes and each file's statistics.
-- Charts any field: hour by day heatmap, monthly range, average day by month, daily envelope, plus overlay charts when several files are open.
+- Charts any field: average day by month (twelve average days in a row with each hour's range), hour by day heatmap, monthly range, daily envelope, plus overlay charts when several files are open. Every chart has its own field menu, and one control sets them all at once.
 - Reads any single record with every value labeled.
 - Draws a wind rose for each file.
 - Shows the whole file as a collapsible tree, like a JSON viewer, with paths and explanations for every node.
@@ -23,7 +23,7 @@ A browser tool for learning the EnergyPlus Weather (EPW) file format and compari
 - Opens with the Trace theme and Berry palette. Six color palettes (Theme colors, Dusk, Ember, Berry, Sand, Sunset), applied the same way to every chart, file label and heatmap.
 - Fills the whole screen and adapts to phones, tablets, laptops and large monitors in portrait or landscape.
 
-Charts come first. The overview, file structure, header, field dictionary, single records and file tree sit in a collapsible Advanced section at the bottom.
+Charts come first, on a flat page with no boxes or dividing rules. The overview, file structure, header, field dictionary, single records and file tree sit in a collapsible Advanced section at the bottom.
 
 ## Privacy and load
 
